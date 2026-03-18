@@ -325,7 +325,10 @@
             body: JSON.stringify({ prompt })
         });
 
-        if (!response.ok) throw new Error("後端呼叫失敗");
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || "後端呼叫失敗 (status " + response.status + ")");
+        }
 
         const result = await response.json();
         let rawText = result.text;
