@@ -316,8 +316,8 @@
 
     try {
         const FUNCTION_URL = window.location.hostname.includes('localhost') 
-            ? 'http://localhost:8888/.netlify/functions/gemini' 
-            : '/.netlify/functions/gemini';
+            ? 'http://localhost:3000/api/gemini' 
+            : '/api/gemini';
 
         const response = await fetch(FUNCTION_URL, {
             method: 'POST',
