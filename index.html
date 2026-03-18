@@ -312,26 +312,12 @@
     const topT = tList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
     const topO = oList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
 
-    const prompt = `分析品牌 "${handle}"。流量高峰：${topT || '無資料'}，訂單高峰：${topO || '無資料'}。回傳 JSON：{"insights": ["重點1","重點2","重點3"],"suggestions": ["建議1","建議2","建議3"]}`;
-
-async function runAI(handle, tGrid, oGrid) {
-    aiLoading.classList.remove('hidden');
-    aiDisplayArea.innerHTML = `<div class="flex items-center justify-center py-12 text-slate-300 animate-pulse">
-        <p class="text-xs font-bold italic tracking-wide">正在安全分析數據...</p></div>`;
-
-    let tList = [], oList = [];
-    tGrid.forEach((row, h) => row.forEach((v, w) => tList.push({h, w, v})));
-    oGrid.forEach((row, h) => row.forEach((v, w) => oList.push({h, w, v})));
-
-    const topT = tList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
-    const topO = oList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
-
     const prompt = `分析品牌 "${handle}"。流量高峰：${topT || '無資料'}，訂單高峰：${topO || '無資料'}。回傳純 JSON，格式如下：{"insights": ["重點1","重點2","重點3"],"suggestions": ["建議1","建議2","建議3"]}。不要包含任何 Markdown 標籤或額外文字。`;
 
     try {
         const FUNCTION_URL = window.location.hostname.includes('localhost') 
-            ? 'http://localhost:3000/api/gemini' 
-            : '/api/gemini';
+            ? 'http://localhost:8888/.netlify/functions/gemini' 
+            : '/.netlify/functions/gemini';
 
         const response = await fetch(FUNCTION_URL, {
             method: 'POST',
