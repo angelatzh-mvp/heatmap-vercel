@@ -8,76 +8,352 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; user-select: none; }
-        .heatmap-container-wrapper { width: 100%; max-width: 550px; aspect-ratio: 5 / 6; position: relative; display: flex; gap: 0.5rem; }
-        .heatmap-grid { display: grid; grid-template-columns: 32px repeat(7, 1fr); grid-template-rows: 25px repeat(24, 1fr); gap: 1px; background-color: #cbd5e1; border: 1px solid #cbd5e1; width: 100%; height: 100%; position: relative; }
-        .heatmap-cell { display: flex; align-items: center; justify-content: center; font-size: clamp(0.4rem, 0.8vw, 0.6rem); background-color: white; transition: background-color 0.1s; font-weight: 700; line-height: 1; position: relative; box-sizing: border-box; overflow: hidden; }
-        .cell-selected { box-shadow: inset 0 0 0 2px #000; z-index: 5; }
-        .cell-selecting { box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5); z-index: 4; }
-        .cell-hover-sync { outline: 2px solid #3b82f6; z-index: 10; background-color: rgba(59, 130, 246, 0.05) !important; }
+        :root {
+            --bg:        #0a0e1a;
+            --surface:   #111827;
+            --surface2:  #1a2235;
+            --border:    #1f2d45;
+            --accent:    #3b82f6;
+            --accent2:   #f59e0b;
+            --text:      #e2e8f0;
+            --muted:     #64748b;
+            --danger:    #ef4444;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            user-select: none;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59,130,246,0.07) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(245,158,11,0.05) 0%, transparent 60%);
+        }
+
+        /* ── Typography ── */
+        .font-display { font-family: 'Syne', sans-serif; }
+        .font-mono    { font-family: 'DM Mono', monospace; }
+
+        /* ── Layout ── */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: #2a3f60; }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ── Heatmap ── */
+        .heatmap-container-wrapper {
+            width: 100%;
+            max-width: 550px;
+            aspect-ratio: 5 / 6;
+            position: relative;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: 28px repeat(7, 1fr);
+            grid-template-rows: 22px repeat(24, 1fr);
+            gap: 1px;
+            background-color: var(--border);
+            border: 1px solid var(--border);
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .heatmap-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.35rem, 0.7vw, 0.55rem);
+            background-color: var(--surface2);
+            transition: background-color 0.1s, transform 0.1s;
+            font-weight: 600;
+            font-family: 'DM Mono', monospace;
+            line-height: 1;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            color: rgba(226,232,240,0.5);
+        }
+
+        .cell-selected   { box-shadow: inset 0 0 0 2px #fff; z-index: 5; }
+        .cell-selecting  { box-shadow: inset 0 0 0 2px rgba(59,130,246,0.6); z-index: 4; }
+        .cell-hover-sync { outline: 2px solid var(--accent); z-index: 10; background-color: rgba(59,130,246,0.08) !important; }
         .heatmap-cell:hover { cursor: crosshair; }
-        .color-scale-bar { background: linear-gradient(to bottom, #7f1d1d, #ef4444, #fbbf24, #fffbeb); width: 8px; height: 100%; border-radius: 2px; }
-        .insight-card { background: #ffffff; border-left: 6px solid #8b5cf6; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .suggestion-card { background: #ffffff; border-left: 6px solid #10b981; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .hour-label { font-size: clamp(0.5rem, 0.9vw, 10px); font-weight: 900; display: flex; align-items: center; justify-content: center; font-family: monospace; }
-        .day-label { font-size: clamp(0.45rem, 0.8vw, 9px); font-weight: 900; display: flex; align-items: center; justify-content: center; background-color: white; text-transform: uppercase; }
+
+        .hour-label {
+            font-size: clamp(0.42rem, 0.75vw, 9px);
+            font-weight: 500;
+            font-family: 'DM Mono', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            color: var(--muted);
+        }
+
+        .day-label {
+            font-size: clamp(0.38rem, 0.65vw, 8px);
+            font-weight: 700;
+            font-family: 'Syne', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .color-scale-bar {
+            background: linear-gradient(to bottom, #dc2626, #f59e0b, #1e3a5f);
+            width: 6px;
+            height: 100%;
+            border-radius: 3px;
+            opacity: 0.85;
+        }
+
+        /* ── Selector ── */
+        #handleSelect {
+            appearance: none;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.5rem 2.5rem 0.5rem 1rem;
+            border-radius: 10px;
+            outline: none;
+            cursor: pointer;
+            min-width: 200px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            transition: border-color 0.2s;
+        }
+        #handleSelect:focus { border-color: var(--accent); }
+        #handleSelect option { background: var(--surface2); }
+
+        /* ── AI Cards ── */
+        .insight-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-top: 3px solid #6366f1;
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        .suggestion-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-top: 3px solid #10b981;
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+
+        /* ── Badge ── */
+        .badge {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+        }
+
+        /* ── Loading ── */
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Download btn ── */
+        .dl-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.65rem;
+            font-family: 'DM Mono', monospace;
+            font-weight: 500;
+            color: var(--muted);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            letter-spacing: 0.05em;
+        }
+        .dl-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(59,130,246,0.06); }
+
+        /* ── Section label ── */
+        .section-eyebrow {
+            font-family: 'DM Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        /* ── Fade-in ── */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.4s ease forwards; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
-<body class="p-4 md:p-6 text-slate-800">
-    <div class="max-w-[1600px] mx-auto">
-        <header class="mb-6 flex flex-col lg:flex-row items-center justify-between bg-white p-5 rounded-2xl shadow-sm border border-slate-200 gap-4">
-            <div class="flex items-center gap-4">
-                <div class="p-3 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-100"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></div>
-                <h1 class="text-xl font-black text-slate-800 tracking-tight">店家流量與訂單熱力圖</h1>
+<body style="padding: 1.5rem 2rem;">
+    <div style="max-width: 1440px; margin: 0 auto;">
+
+        <!-- ── Header ── -->
+        <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; padding-bottom:1.25rem; border-bottom:1px solid var(--border);">
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <div style="width:36px; height:36px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center;">
+                    <i data-lucide="activity" style="width:18px; height:18px; color:#fff;"></i>
+                </div>
+                <div>
+                    <p class="section-eyebrow" style="margin-bottom:2px;">Analytics Dashboard</p>
+                    <h1 class="font-display" style="font-size:1.1rem; font-weight:800; color:var(--text); letter-spacing:-0.02em; line-height:1;">流量 &amp; 訂單熱力圖</h1>
+                </div>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <div id="loadingIndicator" class="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-blue-100"><i data-lucide="refresh-cw" class="w-3 h-3 animate-spin"></i> 正在連線雲端資料...</div>
-                <div id="handleSelectorContainer" class="hidden flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-                    <select id="handleSelect" class="px-4 py-2 border-0 rounded-lg text-xs bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[200px] font-black text-slate-700"></select>
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <div id="loadingIndicator" style="display:flex; align-items:center; gap:6px; padding:0.35rem 0.85rem; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.25); border-radius:8px;">
+                    <i data-lucide="loader-2" style="width:12px; height:12px; color:var(--accent); animation: spin 0.8s linear infinite;"></i>
+                    <span class="section-eyebrow" style="color:var(--accent);">連線中</span>
+                </div>
+                <div id="handleSelectorContainer" style="display:none; align-items:center; gap:0.5rem;">
+                    <span class="section-eyebrow" style="color:var(--muted);">品牌</span>
+                    <select id="handleSelect"></select>
                 </div>
             </div>
         </header>
 
-        <div id="statusMessage" class="hidden mb-6 p-4 rounded-xl text-xs font-bold text-center border"></div>
+        <div id="statusMessage" style="display:none; margin-bottom:1.5rem; padding:0.75rem 1rem; border-radius:10px; font-size:0.75rem; font-weight:600; text-align:center; border:1px solid;"></div>
 
-        <div id="dashboardContent" class="hidden space-y-8">
-            <div class="grid grid-cols-2 gap-4 md:gap-8 items-start">
-                <div class="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center" id="trafficSection">
-                    <div class="flex justify-between items-center mb-4 w-full">
-                        <div class="flex items-center gap-2"><i data-lucide="users" class="w-3 h-3 md:w-4 md:h-4 text-orange-500"></i><h2 id="trafficTitle" class="text-[10px] md:text-sm font-black uppercase tracking-tight">流量分佈</h2></div>
-                        <button onclick="downloadSection('trafficSection', 'Traffic_Heatmap')" class="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-blue-600 flex items-center gap-1 text-[8px] md:text-[9px] font-bold"><i data-lucide="download" class="w-3 h-3"></i> JPG</button>
+        <!-- ── Dashboard ── -->
+        <div id="dashboardContent" style="display:none;">
+
+            <!-- Heatmaps row -->
+            <div class="dashboard-grid" style="margin-bottom:1.5rem;">
+
+                <!-- Traffic -->
+                <div class="card fade-up" id="trafficSection" style="padding:1.25rem; display:flex; flex-direction:column; align-items:center;">
+                    <div class="card-header" style="padding:0; border:none; margin-bottom:1rem; width:100%;">
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="width:8px; height:8px; background:#f59e0b; border-radius:50%; display:inline-block;"></span>
+                            <span class="section-eyebrow">Traffic</span>
+                            <h2 id="trafficTitle" class="font-display" style="font-size:0.85rem; font-weight:700; color:var(--text); margin-left:4px;"></h2>
+                        </div>
+                        <button class="dl-btn" onclick="downloadSection('trafficSection', 'Traffic_Heatmap')">
+                            <i data-lucide="download" style="width:10px; height:10px;"></i> Export
+                        </button>
                     </div>
                     <div class="heatmap-container-wrapper">
-                        <div class="flex-1"><div id="trafficHeatmap" class="w-full h-full" oncontextmenu="return false;"></div></div>
-                        <div class="w-2 md:w-3 flex flex-col items-center justify-between py-6 md:py-8"><span class="text-[6px] md:text-[8px] font-bold text-slate-400" id="trafficMax">0</span><div class="color-scale-bar"></div><span class="text-[6px] md:text-[8px] font-bold text-slate-400">0</span></div>
+                        <div style="flex:1;"><div id="trafficHeatmap" style="width:100%; height:100%;" oncontextmenu="return false;"></div></div>
+                        <div style="width:10px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:1.5rem 0;">
+                            <span class="font-mono" style="font-size:7px; color:var(--muted);" id="trafficMax">0</span>
+                            <div class="color-scale-bar"></div>
+                            <span class="font-mono" style="font-size:7px; color:var(--muted);">0</span>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center" id="ordersSection">
-                    <div class="flex justify-between items-center mb-4 w-full">
-                        <div class="flex items-center gap-2"><i data-lucide="shopping-cart" class="w-3 h-3 md:w-4 md:h-4 text-rose-500"></i><h2 id="ordersTitle" class="text-[10px] md:text-sm font-black uppercase tracking-tight">訂單分佈</h2></div>
-                        <button onclick="downloadSection('ordersSection', 'Orders_Heatmap')" class="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-blue-600 flex items-center gap-1 text-[8px] md:text-[9px] font-bold"><i data-lucide="download" class="w-3 h-3"></i> JPG</button>
+
+                <!-- Orders -->
+                <div class="card fade-up" id="ordersSection" style="padding:1.25rem; display:flex; flex-direction:column; align-items:center; animation-delay:0.1s;">
+                    <div class="card-header" style="padding:0; border:none; margin-bottom:1rem; width:100%;">
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="width:8px; height:8px; background:#ef4444; border-radius:50%; display:inline-block;"></span>
+                            <span class="section-eyebrow">Orders</span>
+                            <h2 id="ordersTitle" class="font-display" style="font-size:0.85rem; font-weight:700; color:var(--text); margin-left:4px;"></h2>
+                        </div>
+                        <button class="dl-btn" onclick="downloadSection('ordersSection', 'Orders_Heatmap')">
+                            <i data-lucide="download" style="width:10px; height:10px;"></i> Export
+                        </button>
                     </div>
                     <div class="heatmap-container-wrapper">
-                        <div class="flex-1"><div id="ordersHeatmap" class="w-full h-full" oncontextmenu="return false;"></div></div>
-                        <div class="w-2 md:w-3 flex flex-col items-center justify-between py-6 md:py-8"><span class="text-[6px] md:text-[8px] font-bold text-slate-400" id="ordersMax">0</span><div class="color-scale-bar"></div><span class="text-[6px] md:text-[8px] font-bold text-slate-400">0</span></div>
+                        <div style="flex:1;"><div id="ordersHeatmap" style="width:100%; height:100%;" oncontextmenu="return false;"></div></div>
+                        <div style="width:10px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:1.5rem 0;">
+                            <span class="font-mono" style="font-size:7px; color:var(--muted);" id="ordersMax">0</span>
+                            <div class="color-scale-bar"></div>
+                            <span class="font-mono" style="font-size:7px; color:var(--muted);">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="bg-slate-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                    <h2 class="font-black text-slate-800 text-sm flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-purple-600"></i> AI 營運洞察與實戰建議</h2>
-                    <span id="aiLoading" class="hidden text-[10px] font-black text-purple-600 animate-pulse flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3 animate-bounce"></i> 正在安全分析數據...</span>
+
+            <!-- AI Insights -->
+            <div class="card fade-up" style="animation-delay:0.2s; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.5rem; border-bottom:1px solid var(--border);">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div style="width:28px; height:28px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                            <i data-lucide="sparkles" style="width:13px; height:13px; color:#818cf8;"></i>
+                        </div>
+                        <div>
+                            <p class="section-eyebrow" style="margin-bottom:1px;">Gemini AI</p>
+                            <h2 class="font-display" style="font-size:0.85rem; font-weight:700; color:var(--text);">營運洞察與實戰建議</h2>
+                        </div>
+                    </div>
+                    <span id="aiLoading" style="display:none; align-items:center; gap:6px; padding:0.3rem 0.75rem; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:6px;">
+                        <i data-lucide="loader-2" style="width:11px; height:11px; color:#818cf8; animation:spin 0.8s linear infinite;"></i>
+                        <span class="section-eyebrow" style="color:#818cf8;">分析中</span>
+                    </span>
                 </div>
-                <div class="p-6" id="aiDisplayArea"><div class="flex items-center justify-center py-12 text-slate-300"><p class="text-xs font-bold italic tracking-wide">等待數據導入以啟動分析報告...</p></div></div>
+                <div style="padding:1.5rem;" id="aiDisplayArea">
+                    <div style="display:flex; align-items:center; justify-content:center; padding:3rem 0; color:var(--muted);">
+                        <p class="font-mono" style="font-size:0.7rem; letter-spacing:0.1em;">— 等待數據載入 —</p>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div id="initialLoader" class="py-32 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
-            <div class="relative w-12 h-12 mx-auto mb-4"><div class="absolute inset-0 rounded-full border-4 border-slate-100"></div><div class="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div></div>
-            <p class="text-slate-800 text-sm font-black mb-1 tracking-tight">正在串接 Google Sheets 雲端中心</p>
+        <!-- Initial loader -->
+        <div id="initialLoader" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8rem 0;">
+            <div class="spinner" style="margin-bottom:1.5rem;"></div>
+            <p class="section-eyebrow" style="color:var(--muted);">正在串接 Google Sheets</p>
         </div>
+
     </div>
 
     <script>
@@ -97,7 +373,7 @@
 
         let selections = { traffic: [], orders: [] };
         let dragInfo = { isDragging: false, startH: null, startW: null, currentH: null, currentW: null, type: null };
-        let lastAnalyzedHandle = null;
+        let aiCache = {};
         let rawData = [];
         const days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'];
 
@@ -147,10 +423,10 @@
 
             const handles = [...new Set(rawData.map(d => d.handle))];
             handleSelect.innerHTML = handles.map(h => `<option value="${h}">${h}</option>`).join('');
-            loadingIndicator.classList.add('hidden');
-            handleSelectorContainer.classList.remove('hidden');
-            initialLoader.classList.add('hidden');
-            dashboardContent.classList.remove('hidden');
+            loadingIndicator.style.display = 'none';
+            handleSelectorContainer.style.display = 'flex';
+            initialLoader.style.display = 'none';
+            dashboardContent.style.display = 'block';
             const target = handles.includes('annaeveryday') ? 'annaeveryday' : handles[0];
             handleSelect.value = target;
             renderHeatmaps(target);
@@ -181,8 +457,9 @@
             drawGrid('trafficHeatmap', tGrid, maxT, 'traffic');
             drawGrid('ordersHeatmap', oGrid, maxO, 'orders');
 
-            if (handle !== lastAnalyzedHandle) {
-                lastAnalyzedHandle = handle;
+            if (aiCache[handle]) {
+                renderAIHTML(aiCache[handle]);
+            } else {
                 runAI(handle, tGrid, oGrid);
             }
         }
@@ -201,8 +478,9 @@
             });
             grid.forEach((row, h) => {
                 const label = document.createElement('div');
-                let bgClass = h <= 6 ? "bg-indigo-50 text-indigo-500" : (h <= 18 ? "bg-amber-50 text-amber-500" : "bg-blue-50 text-blue-500");
-                label.className = `hour-label leading-none ${bgClass}`; label.textContent = h;
+                label.className = 'hour-label';
+                label.style.color = h <= 6 ? '#6366f1' : (h <= 18 ? '#f59e0b' : '#3b82f6');
+                label.textContent = h;
                 g.appendChild(label);
                 row.forEach((v, w) => {
                     const c = document.createElement('div');
@@ -210,7 +488,7 @@
                     c.textContent = v > 0 ? (v < 10 ? v.toFixed(1) : Math.round(v)) : '0';
                     const ratio = max > 0 ? v / max : 0;
                     c.style.backgroundColor = getHexColor(ratio);
-                    if(ratio > 0.5) c.style.color = 'white';
+                    c.style.color = ratio > 0.5 ? 'rgba(255,255,255,0.9)' : 'rgba(100,116,139,0.7)';
                     if (isCellInSelections(h, w, type)) c.classList.add('cell-selected');
                     c.addEventListener('mousedown', (e) => onCellMouseDown(e, h, w, type));
                     c.addEventListener('mouseenter', (e) => onCellMouseEnter(h, w, type));
@@ -278,7 +556,13 @@
             return -1;
         }
         function getHexColor(p) {
-            if (p <= 0) return '#ffffff'; if (p < 0.1) return '#fffbeb'; if (p < 0.3) return '#fef3c7'; if (p < 0.5) return '#fbbf24'; if (p < 0.7) return '#f87171'; if (p < 0.9) return '#dc2626'; return '#7f1d1d';
+            if (p <= 0)   return '#1a2235';
+            if (p < 0.1)  return '#1e3a5f';
+            if (p < 0.25) return '#1d4ed8';
+            if (p < 0.45) return '#f59e0b';
+            if (p < 0.65) return '#f97316';
+            if (p < 0.85) return '#ef4444';
+            return '#dc2626';
         }
 
         async function downloadSection(id, fileName) {
@@ -301,9 +585,8 @@
         }
 
         async function runAI(handle, tGrid, oGrid) {
-    aiLoading.classList.remove('hidden');
-    aiDisplayArea.innerHTML = `<div class="flex items-center justify-center py-12 text-slate-300 animate-pulse">
-        <p class="text-xs font-bold italic tracking-wide">正在安全分析數據...</p></div>`;
+    aiLoading.style.display = 'flex';
+    aiDisplayArea.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:3rem 0;"><p class="font-mono" style="font-size:0.7rem;letter-spacing:0.1em;color:var(--muted);animation:pulse 1.5s ease-in-out infinite;">— 分析中 —</p></div>`;
 
     let tList = [], oList = [];
     tGrid.forEach((row, h) => row.forEach((v, w) => tList.push({h, w, v})));
@@ -349,6 +632,7 @@
         }
 
         if (finalData && finalData.insights) {
+            aiCache[handle] = finalData;
             renderAIHTML(finalData);
         } else {
             throw new Error("回傳資料缺少關鍵欄位");
@@ -356,23 +640,40 @@
 
     } catch (err) {
         console.error("分析流程錯誤:", err);
-        aiDisplayArea.innerHTML = `<div class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-bold">
-            ⚠️ 分析載入失敗：${err.message}</div>`;
+        aiDisplayArea.innerHTML = `<div style="padding:1rem;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;color:#f87171;font-size:0.75rem;font-family:'DM Mono',monospace;">⚠ ${err.message}</div>`;
     } finally {
-        aiLoading.classList.add('hidden');
+        aiLoading.style.display = 'none';
     }
 } 
 
         function renderAIHTML(data) {
             aiDisplayArea.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="insight-card">
-                        <div class="flex items-center gap-2 mb-4 text-purple-700 font-black text-sm uppercase tracking-wider"><i data-lucide="trending-up" class="w-5 h-5"></i> 營運數據洞察</div>
-                        <ul class="space-y-4">${data.insights.map(p => `<li class="flex items-start gap-4 text-slate-600 font-medium text-base leading-relaxed"><span class="mt-2 w-2 h-2 rounded-full bg-purple-400 shrink-0"></span><span>${p}</span></li>`).join('')}</ul>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+                    <div class="insight-card fade-up">
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                            <i data-lucide="trending-up" style="width:14px; height:14px; color:#818cf8;"></i>
+                            <span class="section-eyebrow" style="color:#818cf8;">數據洞察</span>
+                        </div>
+                        <ul style="display:flex; flex-direction:column; gap:0.875rem;">
+                            ${data.insights.map((p,i) => `
+                            <li style="display:flex; align-items:flex-start; gap:0.75rem;">
+                                <span class="font-mono" style="font-size:0.6rem; color:#6366f1; margin-top:3px; min-width:16px;">0${i+1}</span>
+                                <span style="font-size:0.85rem; color:#94a3b8; line-height:1.6;">${p}</span>
+                            </li>`).join('')}
+                        </ul>
                     </div>
-                    <div class="suggestion-card">
-                        <div class="flex items-center gap-2 mb-4 text-emerald-700 font-black text-sm uppercase tracking-wider"><i data-lucide="check-circle" class="w-5 h-5"></i> 實戰轉化建議</div>
-                        <ul class="space-y-4">${data.suggestions.map(s => `<li class="flex items-start gap-4 text-slate-600 font-medium text-base leading-relaxed"><span class="mt-2 w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span><span>${s}</span></li>`).join('')}</ul>
+                    <div class="suggestion-card fade-up" style="animation-delay:0.1s;">
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                            <i data-lucide="zap" style="width:14px; height:14px; color:#34d399;"></i>
+                            <span class="section-eyebrow" style="color:#34d399;">實戰建議</span>
+                        </div>
+                        <ul style="display:flex; flex-direction:column; gap:0.875rem;">
+                            ${data.suggestions.map((s,i) => `
+                            <li style="display:flex; align-items:flex-start; gap:0.75rem;">
+                                <span class="font-mono" style="font-size:0.6rem; color:#10b981; margin-top:3px; min-width:16px;">0${i+1}</span>
+                                <span style="font-size:0.85rem; color:#94a3b8; line-height:1.6;">${s}</span>
+                            </li>`).join('')}
+                        </ul>
                     </div>
                 </div>`;
             lucide.createIcons();
@@ -380,8 +681,11 @@
 
         function showMessage(text, type) {
             statusMessage.textContent = text;
-            statusMessage.className = `mb-6 p-4 rounded-xl text-xs font-bold text-center border ${type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`;
-            statusMessage.classList.remove('hidden');
+            const isErr = type === 'error';
+            statusMessage.style.display = 'block';
+            statusMessage.style.background = isErr ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)';
+            statusMessage.style.color = isErr ? '#f87171' : '#34d399';
+            statusMessage.style.borderColor = isErr ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)';
         }
     </script>
 </body>
