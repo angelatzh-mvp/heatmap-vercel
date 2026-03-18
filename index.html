@@ -6,7 +6,6 @@
     <title>流量 & 訂單分析儀表板</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600;8..144,700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -267,25 +266,6 @@
         .heat-scale { background: linear-gradient(to bottom, #7F0000,#C62828,#EF5350,#FFA726,#FFCA28,#FFF9C4,#FAFAFA); }
         .cvr-scale  { background: linear-gradient(to bottom, #1A237E,#3949AB,#7986CB,#C5CAE9,#E8EAF6,#FAFAFA); }
 
-        /* ── Compare select (inline) ── */
-        .compare-bar {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 20px;
-            background: var(--md-primary-container);
-            border-bottom: 1px solid rgba(57,73,171,0.2);
-        }
-        .compare-select {
-            appearance: none; background: var(--md-surface);
-            border: 1px solid var(--md-outline); border-radius: 6px;
-            color: var(--md-on-surface);
-            font-family: 'Roboto Flex', sans-serif;
-            font-size: 0.8rem; font-weight: 500;
-            padding: 5px 28px 5px 10px; outline: none; cursor: pointer;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2346464F' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 8px center;
-            min-width: 160px;
-        }
-
         /* ── Layout ── */
         .heatmaps-grid {
             display: grid; grid-template-columns: 1fr 1fr;
@@ -415,12 +395,7 @@
                 <select id="handleSelect" class="md-select"></select>
             </div>
             <div class="seg-group">
-                <button class="seg-btn active" id="chipSingle" onclick="setMode('single')">
-                    <i data-lucide="square" style="width:11px;height:11px;"></i> 單品牌
-                </button>
-                <button class="seg-btn" id="chipCompare" onclick="setMode('compare')">
-                    <i data-lucide="columns-2" style="width:11px;height:11px;"></i> 品牌比較
-                </button>
+
                 <button class="seg-btn" id="chipCvr" onclick="setMode('cvr')">
                     <i data-lucide="percent" style="width:11px;height:11px;"></i> 轉換率
                 </button>
@@ -545,45 +520,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ── Compare B card (hidden by default) ── -->
-            <div class="md-card fade-up-d1" id="compareBSection" style="display:none;">
-                <div class="compare-bar">
-                    <i data-lucide="git-compare-arrows" style="width:13px;height:13px;color:var(--md-primary);"></i>
-                    <span style="font-size:0.7rem;font-weight:600;color:var(--md-on-primary-container);letter-spacing:0.06em;text-transform:uppercase;">比較品牌</span>
-                    <select id="compareBSelect" class="compare-select" style="margin-left:auto;" onchange="onCompareBChange()"></select>
-                </div>
-                <div class="card-header">
-                    <div class="card-leading">
-                        <div class="card-icon" style="background:#F3E5F5;">
-                            <i data-lucide="users" style="width:16px;height:16px;color:#7B1FA2;"></i>
-                        </div>
-                        <div>
-                            <div class="title-medium" id="compareBTitle">流量分佈</div>
-                            <div class="label-small">Avg. Visitors per Hour</div>
-                        </div>
-                    </div>
-                    <button class="md-tonal-btn" onclick="downloadSection('compareBSection','CompareB_Heatmap')">
-                        <i data-lucide="download" style="width:12px;height:12px;"></i> Export
-                    </button>
-                </div>
-                <div class="peak-strip" id="compareBPeakStrip">
-                    <span class="peak-strip-label">Top Peaks</span>
-                </div>
-                <div class="heatmap-wrapper">
-                    <div class="heatmap-container-wrapper">
-                        <div style="flex:1;">
-                            <div id="compareBHeatmap" style="width:100%;height:100%;" oncontextmenu="return false;"></div>
-                        </div>
-                        <div class="scale-sidebar">
-                            <span class="scale-val" id="compareBMax">0</span>
-                            <div class="color-scale-bar heat-scale"></div>
-                            <span class="scale-val">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div><!-- /heatmapsGrid -->
 
         <!-- ── AI Insights card ── -->
@@ -622,7 +558,6 @@ const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?form
 
 const $ = id => document.getElementById(id);
 const handleSelect     = $('handleSelect');
-const compareBSelect   = $('compareBSelect');
 const dashboardContent = $('dashboardContent');
 const initialLoader    = $('initialLoader');
 const loadingIndicator = $('loadingIndicator');
@@ -634,7 +569,7 @@ const tooltip          = $('cellTooltip');
 
 let rawData     = [];
 let aiCache     = {};
-let selections  = { traffic:[], orders:[], cvr:[], compareB:[] };
+let selections  = { traffic:[], orders:[], cvr:[] };
 let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, currentW:null, type:null };
 let currentMode = 'single';
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -677,8 +612,6 @@ function processData(data) {
 
     const handles = [...new Set(rawData.map(d => d.handle))];
     handleSelect.innerHTML   = handles.map(h => `<option value="${h}">${h}</option>`).join('');
-    compareBSelect.innerHTML = handles.map(h => `<option value="${h}">${h}</option>`).join('');
-    if (handles.length > 1) compareBSelect.value = handles[1];
 
     loadingIndicator.style.display = 'none';
     controlsBar.style.display      = 'flex';
@@ -693,22 +626,18 @@ function processData(data) {
 // ── Mode switching ────────────────────────────────────────────
 function setMode(mode) {
     currentMode = mode;
-    ['single','compare','cvr'].forEach(m => {
-        $('chip' + m.charAt(0).toUpperCase() + m.slice(1)).classList.toggle('active', m === mode);
-    });
+    $('chipCvr').classList.toggle('active', mode === 'cvr');
     $('cvrSection').style.display      = mode === 'cvr'     ? '' : 'none';
-    $('compareBSection').style.display = mode === 'compare' ? '' : 'none';
     $('heatmapsGrid').style.gridTemplateColumns = mode === 'cvr' ? '1fr 1fr 1fr' : '1fr 1fr';
-    selections = { traffic:[], orders:[], cvr:[], compareB:[] };
+    selections = { traffic:[], orders:[], cvr:[] };
     renderAll();
     lucide.createIcons();
 }
 
 handleSelect.addEventListener('change', () => {
-    selections = { traffic:[], orders:[], cvr:[], compareB:[] };
+    selections = { traffic:[], orders:[], cvr:[] };
     renderAll();
 });
-function onCompareBChange() { selections.compareB = []; renderCompareB(); }
 
 // ── Render orchestration ──────────────────────────────────────
 function renderAll() {
@@ -737,24 +666,11 @@ function renderAll() {
         drawGrid('cvrHeatmap', cvrGrid, maxCVR, 'cvr', 'cvr', tGrid, oGrid);
         renderCVRPeakStrip('cvrPeakStrip', cvrGrid);
     }
-    if (currentMode === 'compare') renderCompareB();
 
     if (aiCache[handle]) renderAIHTML(aiCache[handle]);
     else runAI(handle, tGrid, oGrid);
 }
 
-function renderCompareB() {
-    const handle = compareBSelect.value;
-    if (!handle) return;
-    const data  = rawData.filter(d => d.handle === handle);
-    const tGrid = buildGrid(data, 'visited');
-    const oGrid = buildGrid(data, 'orders');
-    const maxT  = gridMax(tGrid);
-    $('compareBTitle').textContent = `${handle} · 流量`;
-    $('compareBMax').textContent   = Math.round(maxT).toLocaleString();
-    drawGrid('compareBHeatmap', tGrid, maxT, 'compareB', 'heat', tGrid, oGrid);
-    renderPeakStrip('compareBPeakStrip', tGrid, 't');
-}
 
 // ── Grid builders ─────────────────────────────────────────────
 function buildGrid(data, field) {
@@ -868,7 +784,7 @@ function onCellEnter(e, h, w, type, v, palette, tRef, oRef) {
     const hStr = h < 10 ? '0' + h : h;
     if (palette === 'cvr') {
         tooltip.textContent = `${days[w]} ${hStr}:00   CVR: ${(v*100).toFixed(2)}%`;
-    } else if (type === 'traffic' || type === 'compareB') {
+    } else if (type === 'traffic') {
         tooltip.textContent = `${days[w]} ${hStr}:00   訪客: ${Math.round(tV).toLocaleString()}   CVR: ${cvrStr}`;
     } else {
         tooltip.textContent = `${days[w]} ${hStr}:00   訂單: ${Math.round(oV).toLocaleString()}   CVR: ${cvrStr}`;
@@ -958,25 +874,120 @@ function showMessage(text, type) {
     statusMessage.textContent = text;
 }
 
-async function downloadSection(id, fileName) {
-    const el  = $(id);
-    const btn = el.querySelector('button'); btn.style.display = 'none';
-    const canvas = await html2canvas(el, {
-        scale:3, useCORS:true, backgroundColor:'#fff',
-        onclone: clonedDoc => {
-            const cel = clonedDoc.getElementById(id);
-            cel.querySelectorAll('.heatmap-cell,.hour-label,.day-label').forEach(e => {
-                const r = e.getBoundingClientRect();
-                e.style.display='table'; e.style.width=r.width+'px'; e.style.height=r.height+'px';
-                e.style.padding='0'; e.style.margin='0';
-                const txt=e.innerHTML, fs=window.getComputedStyle(e).fontSize;
-                e.innerHTML=`<div style="display:table-cell;vertical-align:middle;text-align:center;width:100%;height:${r.height}px;font-family:Arial,sans-serif;font-size:${fs};font-weight:600;line-height:1;">${txt}</div>`;
-            });
-        }
+function downloadSection(id, fileName) {
+    // Determine which grid type this card contains
+    const gridTypeMap = {
+        'trafficSection': { type: 'traffic', palette: 'heat' },
+        'ordersSection':  { type: 'orders',  palette: 'heat' },
+        'cvrSection':     { type: 'cvr',     palette: 'cvr'  },
+    };
+    const { type, palette } = gridTypeMap[id];
+
+    // Retrieve the live grid data from the last rendered state
+    const handle = handleSelect.value;
+    const data   = rawData.filter(d => d.handle === handle);
+    const tGrid  = buildGrid(data, 'visited');
+    const oGrid  = buildGrid(data, 'orders');
+    const grid   = palette === 'cvr' ? buildCVRGrid(tGrid, oGrid)
+                 : type === 'traffic' ? tGrid : oGrid;
+    const max    = gridMax(grid);
+
+    // Canvas layout constants
+    const SCALE    = 3;           // retina multiplier
+    const CELL_W   = 28 * SCALE;
+    const CELL_H   = 20 * SCALE;
+    const HOUR_W   = 28 * SCALE;
+    const DAY_H    = 22 * SCALE;
+    const GAP      = 1  * SCALE;
+    const PAD      = 16 * SCALE;  // outer padding
+
+    const COLS     = 7;
+    const ROWS     = 24;
+    const totalW   = PAD * 2 + HOUR_W + GAP + COLS * CELL_W + (COLS - 1) * GAP;
+    const totalH   = PAD * 2 + DAY_H  + GAP + ROWS * CELL_H + (ROWS - 1) * GAP;
+
+    const canvas  = document.createElement('canvas');
+    canvas.width  = totalW;
+    canvas.height = totalH;
+    const ctx     = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, totalW, totalH);
+
+    const fontSize    = 9  * SCALE;
+    const labelFontSz = 8  * SCALE;
+    ctx.textAlign     = 'center';
+    ctx.textBaseline  = 'middle';
+
+    // Day labels row
+    ctx.font = `600 ${labelFontSz}px Arial`;
+    days.forEach((day, w) => {
+        const x = PAD + HOUR_W + GAP + w * (CELL_W + GAP);
+        ctx.fillStyle = '#46464F';
+        ctx.fillRect(x, PAD, CELL_W, DAY_H);
+        ctx.fillStyle = '#FAFAFA';
+        ctx.fillText(day, x + CELL_W / 2, PAD + DAY_H / 2);
     });
-    btn.style.display = 'inline-flex';
+
+    // Rows
+    grid.forEach((row, h) => {
+        const y = PAD + DAY_H + GAP + h * (CELL_H + GAP);
+
+        // Hour label
+        ctx.fillStyle = '#F4F4F9';
+        ctx.fillRect(PAD, y, HOUR_W, CELL_H);
+        ctx.font = `500 ${labelFontSz}px Arial`;
+        ctx.fillStyle = '#46464F';
+        ctx.fillText(h < 10 ? '0' + h : String(h), PAD + HOUR_W / 2, y + CELL_H / 2);
+
+        // Cells
+        row.forEach((v, w) => {
+            const x     = PAD + HOUR_W + GAP + w * (CELL_W + GAP);
+            const ratio = max > 0 ? v / max : 0;
+            const bgCol = palette === 'cvr' ? getCVRColor(ratio) : getHeatColor(ratio);
+
+            ctx.fillStyle = bgCol;
+            ctx.fillRect(x, y, CELL_W, CELL_H);
+
+            if (v > 0) {
+                ctx.font      = `500 ${fontSize}px Arial`;
+                ctx.fillStyle = ratio > 0.5 ? 'rgba(255,255,255,0.92)' : 'rgba(70,70,79,0.7)';
+                const label   = palette === 'cvr'
+                    ? (v * 100).toFixed(1) + '%'
+                    : (v < 10 ? v.toFixed(1) : String(Math.round(v)));
+                ctx.fillText(label, x + CELL_W / 2, y + CELL_H / 2);
+            }
+        });
+    });
+
+    // Title strip at top
+    const titleH = 36 * SCALE;
+    const imgData = ctx.getImageData(0, 0, totalW, totalH);
+    const finalCanvas  = document.createElement('canvas');
+    finalCanvas.width  = totalW;
+    finalCanvas.height = totalH + titleH;
+    const fCtx = finalCanvas.getContext('2d');
+    fCtx.fillStyle = '#FFFFFF';
+    fCtx.fillRect(0, 0, totalW, totalH + titleH);
+
+    // Title text
+    fCtx.font      = `600 ${13 * SCALE}px Arial`;
+    fCtx.fillStyle = '#1C1B1F';
+    fCtx.textAlign = 'left';
+    fCtx.textBaseline = 'middle';
+    const titleLabel = palette === 'cvr' ? `${handle} · 轉換率 (CVR)`
+                     : type === 'traffic' ? `${handle} · 流量分佈`
+                     : `${handle} · 訂單分佈`;
+    fCtx.fillText(titleLabel, PAD, titleH / 2);
+
+    // Paste heatmap below title
+    fCtx.putImageData(imgData, 0, titleH);
+
     const a = document.createElement('a');
-    a.download = `${fileName}.jpg`; a.href = canvas.toDataURL('image/jpeg', 0.95); a.click();
+    a.download = `${fileName}.jpg`;
+    a.href     = finalCanvas.toDataURL('image/jpeg', 0.95);
+    a.click();
 }
 
 // ── AI ────────────────────────────────────────────────────────
