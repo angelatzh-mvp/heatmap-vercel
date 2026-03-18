@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店家流量與訂單熱力圖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; user-select: none; }
+        .heatmap-container-wrapper { width: 100%; max-width: 550px; aspect-ratio: 5 / 6; position: relative; display: flex; gap: 0.5rem; }
+        .heatmap-grid { display: grid; grid-template-columns: 32px repeat(7, 1fr); grid-template-rows: 25px repeat(24, 1fr); gap: 1px; background-color: #cbd5e1; border: 1px solid #cbd5e1; width: 100%; height: 100%; position: relative; }
+        .heatmap-cell { display: flex; align-items: center; justify-content: center; font-size: clamp(0.4rem, 0.8vw, 0.6rem); background-color: white; transition: background-color 0.1s; font-weight: 700; line-height: 1; position: relative; box-sizing: border-box; overflow: hidden; }
+        .cell-selected { box-shadow: inset 0 0 0 2px #000; z-index: 5; }
+        .cell-selecting { box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5); z-index: 4; }
+        .cell-hover-sync { outline: 2px solid #3b82f6; z-index: 10; background-color: rgba(59, 130, 246, 0.05) !important; }
+        .heatmap-cell:hover { cursor: crosshair; }
+        .color-scale-bar { background: linear-gradient(to bottom, #7f1d1d, #ef4444, #fbbf24, #fffbeb); width: 8px; height: 100%; border-radius: 2px; }
+        .insight-card { background: #ffffff; border-left: 6px solid #8b5cf6; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .suggestion-card { background: #ffffff; border-left: 6px solid #10b981; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .hour-label { font-size: clamp(0.5rem, 0.9vw, 10px); font-weight: 900; display: flex; align-items: center; justify-content: center; font-family: monospace; }
+        .day-label { font-size: clamp(0.45rem, 0.8vw, 9px); font-weight: 900; display: flex; align-items: center; justify-content: center; background-color: white; text-transform: uppercase; }
+    </style>
+</head>
+<body class="p-4 md:p-6 text-slate-800">
+    <div class="max-w-[1600px] mx-auto">
+        <header class="mb-6 flex flex-col lg:flex-row items-center justify-between bg-white p-5 rounded-2xl shadow-sm border border-slate-200 gap-4">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-100"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></div>
+                <h1 class="text-xl font-black text-slate-800 tracking-tight">店家流量與訂單熱力圖</h1>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div id="loadingIndicator" class="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-blue-100"><i data-lucide="refresh-cw" class="w-3 h-3 animate-spin"></i> 正在連線雲端資料...</div>
+                <div id="handleSelectorContainer" class="hidden flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+                    <select id="handleSelect" class="px-4 py-2 border-0 rounded-lg text-xs bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[200px] font-black text-slate-700"></select>
+                </div>
+            </div>
+        </header>
+
+        <div id="statusMessage" class="hidden mb-6 p-4 rounded-xl text-xs font-bold text-center border"></div>
+
+        <div id="dashboardContent" class="hidden space-y-8">
+            <div class="grid grid-cols-2 gap-4 md:gap-8 items-start">
+                <div class="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center" id="trafficSection">
+                    <div class="flex justify-between items-center mb-4 w-full">
+                        <div class="flex items-center gap-2"><i data-lucide="users" class="w-3 h-3 md:w-4 md:h-4 text-orange-500"></i><h2 id="trafficTitle" class="text-[10px] md:text-sm font-black uppercase tracking-tight">流量分佈</h2></div>
+                        <button onclick="downloadSection('trafficSection', 'Traffic_Heatmap')" class="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-blue-600 flex items-center gap-1 text-[8px] md:text-[9px] font-bold"><i data-lucide="download" class="w-3 h-3"></i> JPG</button>
+                    </div>
+                    <div class="heatmap-container-wrapper">
+                        <div class="flex-1"><div id="trafficHeatmap" class="w-full h-full" oncontextmenu="return false;"></div></div>
+                        <div class="w-2 md:w-3 flex flex-col items-center justify-between py-6 md:py-8"><span class="text-[6px] md:text-[8px] font-bold text-slate-400" id="trafficMax">0</span><div class="color-scale-bar"></div><span class="text-[6px] md:text-[8px] font-bold text-slate-400">0</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center" id="ordersSection">
+                    <div class="flex justify-between items-center mb-4 w-full">
+                        <div class="flex items-center gap-2"><i data-lucide="shopping-cart" class="w-3 h-3 md:w-4 md:h-4 text-rose-500"></i><h2 id="ordersTitle" class="text-[10px] md:text-sm font-black uppercase tracking-tight">訂單分佈</h2></div>
+                        <button onclick="downloadSection('ordersSection', 'Orders_Heatmap')" class="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-blue-600 flex items-center gap-1 text-[8px] md:text-[9px] font-bold"><i data-lucide="download" class="w-3 h-3"></i> JPG</button>
+                    </div>
+                    <div class="heatmap-container-wrapper">
+                        <div class="flex-1"><div id="ordersHeatmap" class="w-full h-full" oncontextmenu="return false;"></div></div>
+                        <div class="w-2 md:w-3 flex flex-col items-center justify-between py-6 md:py-8"><span class="text-[6px] md:text-[8px] font-bold text-slate-400" id="ordersMax">0</span><div class="color-scale-bar"></div><span class="text-[6px] md:text-[8px] font-bold text-slate-400">0</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="font-black text-slate-800 text-sm flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-purple-600"></i> AI 營運洞察與實戰建議</h2>
+                    <span id="aiLoading" class="hidden text-[10px] font-black text-purple-600 animate-pulse flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3 animate-bounce"></i> 正在安全分析數據...</span>
+                </div>
+                <div class="p-6" id="aiDisplayArea"><div class="flex items-center justify-center py-12 text-slate-300"><p class="text-xs font-bold italic tracking-wide">等待數據導入以啟動分析報告...</p></div></div>
+            </div>
+        </div>
+
+        <div id="initialLoader" class="py-32 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
+            <div class="relative w-12 h-12 mx-auto mb-4"><div class="absolute inset-0 rounded-full border-4 border-slate-100"></div><div class="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div></div>
+            <p class="text-slate-800 text-sm font-black mb-1 tracking-tight">正在串接 Google Sheets 雲端中心</p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const SHEET_ID = "1DrKOSCFSFq9X-nD37beBAnnntAP06vf7jyEIGCPpQ-E";
+        const GID = "1526535922";
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+        const handleSelect = document.getElementById('handleSelect');
+        const handleSelectorContainer = document.getElementById('handleSelectorContainer');
+        const dashboardContent = document.getElementById('dashboardContent');
+        const initialLoader = document.getElementById('initialLoader');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const statusMessage = document.getElementById('statusMessage');
+        const aiDisplayArea = document.getElementById('aiDisplayArea');
+        const aiLoading = document.getElementById('aiLoading');
+
+        let selections = { traffic: [], orders: [] };
+        let dragInfo = { isDragging: false, startH: null, startW: null, currentH: null, currentW: null, type: null };
+        let lastAnalyzedHandle = null;
+        let rawData = [];
+        const days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'];
+
+        window.onload = fetchSheetData;
+
+        async function fetchSheetData() {
+            try {
+                const response = await fetch(CSV_URL);
+                if (!response.ok) throw new Error("HTTP 錯誤: " + response.status);
+                const csvText = await response.text();
+                Papa.parse(csvText, {
+                    header: true, skipEmptyLines: true,
+                    transformHeader: (h) => h.trim().replace(/^\ufeff/, ""),
+                    complete: (results) => processData(results.data),
+                });
+            } catch (err) { showMessage("數據擷取失敗，請確認該 Google Sheet 是否已發佈至網路。", "error"); }
+        }
+
+        function processData(data) {
+            if (!data || data.length === 0) return;
+            const headers = Object.keys(data[0]);
+            const findCol = (targets) => {
+                let match = headers.find(h => targets.some(t => h === t));
+                if (match) return match;
+                return headers.find(h => targets.some(t => h.toLowerCase() === t.toLowerCase()));
+            };
+            const cols = {
+                handle: findCol(['handle', '品牌', '店家']),
+                weeks: findCol(['weeks', '星期', 'week']),
+                hours: findCol(['hours', '時段', 'hour']),
+                visited: findCol(['Avg_Visited', '流量', 'visited']),
+                orders: findCol(['Total_Avg_Online_Orders', '訂單', 'orders', 'Total_Avg_Online_Orders'])
+            };
+            rawData = data.map(row => {
+                const cleanNum = (val) => {
+                    const num = parseFloat(String(val || 0).replace(/[$, ]/g, ''));
+                    return isNaN(num) ? 0 : num;
+                };
+                return {
+                    handle: String(row[cols.handle] || 'Unknown').trim(),
+                    weeks: String(row[cols.weeks] || '').trim(),
+                    hours: parseInt(row[cols.hours]),
+                    visited: cleanNum(row[cols.visited]),
+                    orders: cleanNum(row[cols.orders])
+                };
+            }).filter(d => !isNaN(d.hours));
+
+            const handles = [...new Set(rawData.map(d => d.handle))];
+            handleSelect.innerHTML = handles.map(h => `<option value="${h}">${h}</option>`).join('');
+            loadingIndicator.classList.add('hidden');
+            handleSelectorContainer.classList.remove('hidden');
+            initialLoader.classList.add('hidden');
+            dashboardContent.classList.remove('hidden');
+            const target = handles.includes('annaeveryday') ? 'annaeveryday' : handles[0];
+            handleSelect.value = target;
+            renderHeatmaps(target);
+        }
+
+        handleSelect.addEventListener('change', (e) => {
+            selections.traffic = []; selections.orders = [];
+            renderHeatmaps(e.target.value);
+        });
+
+        function renderHeatmaps(handle) {
+            document.getElementById('trafficTitle').textContent = `${handle} 流量分佈`;
+            document.getElementById('ordersTitle').textContent = `${handle} 訂單分佈`;
+            const data = rawData.filter(d => d.handle === handle);
+            const tGrid = Array.from({length: 24}, () => Array(7).fill(0));
+            const oGrid = Array.from({length: 24}, () => Array(7).fill(0));
+            let maxT = 0, maxO = 0;
+            data.forEach(d => {
+                const w = getWeekIdx(d.weeks);
+                const h = d.hours;
+                if (h >= 0 && h < 24 && w !== -1) {
+                    tGrid[h][w] = d.visited; oGrid[h][w] = d.orders;
+                    maxT = Math.max(maxT, tGrid[h][w]); maxO = Math.max(maxO, oGrid[h][w]);
+                }
+            });
+            document.getElementById('trafficMax').textContent = Math.round(maxT).toLocaleString();
+            document.getElementById('ordersMax').textContent = Math.round(maxO).toLocaleString();
+            drawGrid('trafficHeatmap', tGrid, maxT, 'traffic');
+            drawGrid('ordersHeatmap', oGrid, maxO, 'orders');
+
+            if (handle !== lastAnalyzedHandle) {
+                lastAnalyzedHandle = handle;
+                runAI(handle, tGrid, oGrid);
+            }
+        }
+
+        function drawGrid(id, grid, max, type) {
+            const container = document.getElementById(id);
+            container.innerHTML = '';
+            const g = document.createElement('div');
+            g.className = 'heatmap-grid';
+            g.id = `${type}-grid-element`;
+            g.appendChild(document.createElement('div'));
+            days.forEach(day => {
+                const d = document.createElement('div');
+                d.className = 'day-label'; d.textContent = day;
+                g.appendChild(d);
+            });
+            grid.forEach((row, h) => {
+                const label = document.createElement('div');
+                let bgClass = h <= 6 ? "bg-indigo-50 text-indigo-500" : (h <= 18 ? "bg-amber-50 text-amber-500" : "bg-blue-50 text-blue-500");
+                label.className = `hour-label leading-none ${bgClass}`; label.textContent = h;
+                g.appendChild(label);
+                row.forEach((v, w) => {
+                    const c = document.createElement('div');
+                    c.className = 'heatmap-cell'; c.dataset.h = h; c.dataset.w = w;
+                    c.textContent = v > 0 ? (v < 10 ? v.toFixed(1) : Math.round(v)) : '0';
+                    const ratio = max > 0 ? v / max : 0;
+                    c.style.backgroundColor = getHexColor(ratio);
+                    if(ratio > 0.5) c.style.color = 'white';
+                    if (isCellInSelections(h, w, type)) c.classList.add('cell-selected');
+                    c.addEventListener('mousedown', (e) => onCellMouseDown(e, h, w, type));
+                    c.addEventListener('mouseenter', (e) => onCellMouseEnter(h, w, type));
+                    c.addEventListener('mouseleave', () => onCellMouseLeave());
+                    g.appendChild(c);
+                });
+            });
+            container.appendChild(g);
+        }
+
+        function onCellMouseEnter(h, w, type) {
+            const hInt = parseInt(h), wInt = parseInt(w);
+            if (dragInfo.isDragging && dragInfo.type === type) {
+                dragInfo.currentH = hInt; dragInfo.currentW = wInt;
+                updateGridSelectionPreview();
+            }
+            const allCells = document.querySelectorAll(`.heatmap-cell[data-h="${hInt}"][data-w="${wInt}"]`);
+            allCells.forEach(cell => cell.classList.add('cell-hover-sync'));
+        }
+
+        function onCellMouseLeave() {
+            document.querySelectorAll('.cell-hover-sync').forEach(cell => cell.classList.remove('cell-hover-sync'));
+        }
+
+        function onCellMouseDown(e, h, w, type) {
+            const existingIndex = selections[type].findIndex(sel => h >= sel.hStart && h <= sel.hEnd && w >= sel.wStart && w <= sel.wEnd);
+            if (existingIndex !== -1) {
+                selections[type].splice(existingIndex, 1);
+                renderHeatmaps(handleSelect.value);
+                return;
+            }
+            dragInfo.isDragging = true; dragInfo.startH = h; dragInfo.startW = w;
+            dragInfo.currentH = h; dragInfo.currentW = w; dragInfo.type = type;
+            window.addEventListener('mouseup', onGlobalMouseUp);
+            updateGridSelectionPreview();
+        }
+
+        function onGlobalMouseUp() {
+            if (!dragInfo.isDragging) return;
+            const hRange = [Math.min(dragInfo.startH, dragInfo.currentH), Math.max(dragInfo.startH, dragInfo.currentH)];
+            const wRange = [Math.min(dragInfo.startW, dragInfo.currentW), Math.max(dragInfo.startW, dragInfo.currentW)];
+            selections[dragInfo.type].push({ hStart: hRange[0], hEnd: hRange[1], wStart: wRange[0], wEnd: wRange[1] });
+            dragInfo.isDragging = false;
+            window.removeEventListener('mouseup', onGlobalMouseUp);
+            renderHeatmaps(handleSelect.value);
+        }
+
+        function updateGridSelectionPreview() {
+            if (!dragInfo.isDragging) return;
+            const gridEl = document.getElementById(`${dragInfo.type}-grid-element`);
+            const hRange = [Math.min(dragInfo.startH, dragInfo.currentH), Math.max(dragInfo.startH, dragInfo.currentH)];
+            const wRange = [Math.min(dragInfo.startW, dragInfo.currentW), Math.max(dragInfo.startW, dragInfo.currentW)];
+            gridEl.querySelectorAll('.heatmap-cell').forEach(cell => {
+                const h = parseInt(cell.dataset.h); const w = parseInt(cell.dataset.w);
+                if (h >= hRange[0] && h <= hRange[1] && w >= wRange[0] && w <= wRange[1]) cell.classList.add('cell-selecting');
+                else cell.classList.remove('cell-selecting');
+            });
+        }
+
+        function isCellInSelections(h, w, type) { return selections[type].some(sel => h >= sel.hStart && h <= sel.hEnd && w >= sel.wStart && w <= sel.wEnd); }
+        function getWeekIdx(s) {
+            const l = s.toLowerCase().trim();
+            const map = { 'mon':0,'monday':0,'星期一':0,'tue':1,'tuesday':1,'星期二':1,'wed':2,'wednesday':2,'星期三':2,'thu':3,'thurs':3,'thursday':3,'fri':4,'friday':4,'星期五':4,'sat':5,'saturday':5,'星期六':5,'sun':6,'sunday':6,'星期日':6,'1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6 };
+            for(let key in map) if(l === key || l.includes(key)) return map[key];
+            return -1;
+        }
+        function getHexColor(p) {
+            if (p <= 0) return '#ffffff'; if (p < 0.1) return '#fffbeb'; if (p < 0.3) return '#fef3c7'; if (p < 0.5) return '#fbbf24'; if (p < 0.7) return '#f87171'; if (p < 0.9) return '#dc2626'; return '#7f1d1d';
+        }
+
+        async function downloadSection(id, fileName) {
+            const element = document.getElementById(id);
+            const btn = element.querySelector('button'); btn.style.display = 'none';
+            const canvas = await html2canvas(element, { 
+                scale: 3, useCORS: true, backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.getElementById(id);
+                    clonedElement.querySelectorAll('.heatmap-cell, .hour-label, .day-label').forEach(el => {
+                        const rect = el.getBoundingClientRect(); const h = rect.height; const w = rect.width;
+                        el.style.display = 'table'; el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.padding = '0'; el.style.margin = '0';
+                        const content = el.innerHTML; const fontSize = window.getComputedStyle(el).fontSize;
+                        el.innerHTML = `<div style="display:table-cell;vertical-align:middle;text-align:center;width:100%;height:${h}px;font-family:Arial,sans-serif;font-size:${fontSize};font-weight:700;line-height:1;">${content}</div>`;
+                    });
+                }
+            });
+            btn.style.display = 'flex';
+            const link = document.createElement('a'); link.download = `${fileName}.jpg`; link.href = canvas.toDataURL("image/jpeg", 0.95); link.click();
+        }
+
+        async function runAI(handle, tGrid, oGrid) {
+    aiLoading.classList.remove('hidden');
+    aiDisplayArea.innerHTML = `<div class="flex items-center justify-center py-12 text-slate-300 animate-pulse">
+        <p class="text-xs font-bold italic tracking-wide">正在安全分析數據...</p></div>`;
+
+    let tList = [], oList = [];
+    tGrid.forEach((row, h) => row.forEach((v, w) => tList.push({h, w, v})));
+    oGrid.forEach((row, h) => row.forEach((v, w) => oList.push({h, w, v})));
+
+    const topT = tList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
+    const topO = oList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
+
+    const prompt = `分析品牌 "${handle}"。流量高峰：${topT || '無資料'}，訂單高峰：${topO || '無資料'}。回傳 JSON：{"insights": ["重點1","重點2","重點3"],"suggestions": ["建議1","建議2","建議3"]}`;
+
+async function runAI(handle, tGrid, oGrid) {
+    aiLoading.classList.remove('hidden');
+    aiDisplayArea.innerHTML = `<div class="flex items-center justify-center py-12 text-slate-300 animate-pulse">
+        <p class="text-xs font-bold italic tracking-wide">正在安全分析數據...</p></div>`;
+
+    let tList = [], oList = [];
+    tGrid.forEach((row, h) => row.forEach((v, w) => tList.push({h, w, v})));
+    oGrid.forEach((row, h) => row.forEach((v, w) => oList.push({h, w, v})));
+
+    const topT = tList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
+    const topO = oList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
+
+    const prompt = `分析品牌 "${handle}"。流量高峰：${topT || '無資料'}，訂單高峰：${topO || '無資料'}。回傳純 JSON，格式如下：{"insights": ["重點1","重點2","重點3"],"suggestions": ["建議1","建議2","建議3"]}。不要包含任何 Markdown 標籤或額外文字。`;
+
+    try {
+        const FUNCTION_URL = window.location.hostname.includes('localhost') 
+            ? 'http://localhost:3000/api/gemini' 
+            : '/api/gemini';
+
+        const response = await fetch(FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+        });
+
+        if (!response.ok) throw new Error("後端呼叫失敗");
+
+        const result = await response.json();
+        let rawText = result.text;
+
+        // --- 強力清洗與解析邏輯 ---
+        let finalData;
+        try {
+            // 1. 先處理可能的字串轉義問題
+            let cleanedText = rawText;
+            
+            // 2. 尋找第一個 '{' 和最後一個 '}'，切掉可能存在的額外文字
+            const startIdx = cleanedText.indexOf('{');
+            const endIdx = cleanedText.lastIndexOf('}');
+            
+            if (startIdx !== -1 && endIdx !== -1) {
+                cleanedText = cleanedText.substring(startIdx, endIdx + 1);
+            }
+
+            // 3. 處理可能的換行符號問題（JSON.parse 對未轉義的換行很敏感）
+            cleanedText = cleanedText.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+            
+            // 注意：如果這導致雙重轉義，解析會失敗。我們先嘗試最直接的解析：
+            try {
+                finalData = JSON.parse(rawText.trim());
+            } catch (e) {
+                // 如果直接解析失敗，再用清洗過的版本
+                finalData = JSON.parse(cleanedText);
+            }
+
+        } catch (parseError) {
+            console.error("JSON 解析失敗:", parseError, "原始文字:", rawText);
+            throw new Error("AI 回傳格式無法解析，請再試一次。");
+        }
+
+        if (finalData && finalData.insights) {
+            renderAIHTML(finalData);
+        } else {
+            throw new Error("回傳資料缺少關鍵欄位");
+        }
+
+    } catch (err) {
+        console.error("分析流程錯誤:", err);
+        aiDisplayArea.innerHTML = `<div class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-bold">
+            ⚠️ 分析載入失敗：${err.message}</div>`;
+    } finally {
+        aiLoading.classList.add('hidden');
+    }
+} 
+
+        function renderAIHTML(data) {
+            aiDisplayArea.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="insight-card">
+                        <div class="flex items-center gap-2 mb-4 text-purple-700 font-black text-sm uppercase tracking-wider"><i data-lucide="trending-up" class="w-5 h-5"></i> 營運數據洞察</div>
+                        <ul class="space-y-4">${data.insights.map(p => `<li class="flex items-start gap-4 text-slate-600 font-medium text-base leading-relaxed"><span class="mt-2 w-2 h-2 rounded-full bg-purple-400 shrink-0"></span><span>${p}</span></li>`).join('')}</ul>
+                    </div>
+                    <div class="suggestion-card">
+                        <div class="flex items-center gap-2 mb-4 text-emerald-700 font-black text-sm uppercase tracking-wider"><i data-lucide="check-circle" class="w-5 h-5"></i> 實戰轉化建議</div>
+                        <ul class="space-y-4">${data.suggestions.map(s => `<li class="flex items-start gap-4 text-slate-600 font-medium text-base leading-relaxed"><span class="mt-2 w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span><span>${s}</span></li>`).join('')}</ul>
+                    </div>
+                </div>`;
+            lucide.createIcons();
+        }
+
+        function showMessage(text, type) {
+            statusMessage.textContent = text;
+            statusMessage.className = `mb-6 p-4 rounded-xl text-xs font-bold text-center border ${type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`;
+            statusMessage.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
