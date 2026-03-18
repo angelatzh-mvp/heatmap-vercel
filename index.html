@@ -336,31 +336,16 @@
         // --- 強力清洗與解析邏輯 ---
         let finalData;
         try {
-            // 1. 先處理可能的字串轉義問題
-            let cleanedText = rawText;
-            
-            // 2. 尋找第一個 '{' 和最後一個 '}'，切掉可能存在的額外文字
-            const startIdx = cleanedText.indexOf('{');
-            const endIdx = cleanedText.lastIndexOf('}');
-            
-            if (startIdx !== -1 && endIdx !== -1) {
-                cleanedText = cleanedText.substring(startIdx, endIdx + 1);
-            }
-
-            // 3. 處理可能的換行符號問題（JSON.parse 對未轉義的換行很敏感）
-            cleanedText = cleanedText.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-            
-            // 注意：如果這導致雙重轉義，解析會失敗。我們先嘗試最直接的解析：
-            try {
-                finalData = JSON.parse(rawText.trim());
-            } catch (e) {
-                // 如果直接解析失敗，再用清洗過的版本
-                finalData = JSON.parse(cleanedText);
-            }
-
+            // Extract JSON object from the response
+            const startIdx = rawText.indexOf('{');
+            const endIdx = rawText.lastIndexOf('}');
+            const cleanedText = (startIdx !== -1 && endIdx !== -1)
+                ? rawText.substring(startIdx, endIdx + 1)
+                : rawText.trim();
+            finalData = JSON.parse(cleanedText);
         } catch (parseError) {
             console.error("JSON 解析失敗:", parseError, "原始文字:", rawText);
-            throw new Error("AI 回傳格式無法解析，請再試一次。");
+            throw new Error("AI 回傳格式無法解析：" + rawText.substring(0, 100));
         }
 
         if (finalData && finalData.insights) {
