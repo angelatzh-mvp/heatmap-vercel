@@ -3,690 +3,1054 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>店家流量與訂單熱力圖</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>流量 & 訂單分析儀表板</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600;8..144,700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        /* ── MD3 Color Tokens (Indigo seed) ── */
         :root {
-            --bg:        #0a0e1a;
-            --surface:   #111827;
-            --surface2:  #1a2235;
-            --border:    #1f2d45;
-            --accent:    #3b82f6;
-            --accent2:   #f59e0b;
-            --text:      #e2e8f0;
-            --muted:     #64748b;
-            --danger:    #ef4444;
+            --md-primary:                #3949AB;
+            --md-on-primary:             #FFFFFF;
+            --md-primary-container:      #E8EAF6;
+            --md-on-primary-container:   #1A237E;
+            --md-secondary:              #546E7A;
+            --md-secondary-container:    #E0F2F1;
+            --md-on-secondary-container: #00363A;
+            --md-tertiary:               #00796B;
+            --md-tertiary-container:     #E0F2F1;
+            --md-on-tertiary-container:  #003D33;
+            --md-surface:                #FFFFFF;
+            --md-surface-variant:        #F4F4F9;
+            --md-surface-container:      #EEEDF4;
+            --md-surface-container-high: #E8E8F0;
+            --md-on-surface:             #1C1B1F;
+            --md-on-surface-variant:     #46464F;
+            --md-outline:                #C5C6D0;
+            --md-outline-variant:        #E2E2EC;
+            --md-error:                  #B3261E;
+            --md-error-container:        #F9DEDC;
+            --md-on-error-container:     #7F0000;
+            /* Elevation shadows */
+            --md-elev1: 0 1px 2px rgba(57,73,171,0.06), 0 2px 6px rgba(57,73,171,0.05);
+            --md-elev2: 0 1px 2px rgba(57,73,171,0.08), 0 4px 12px rgba(57,73,171,0.08);
+            --md-elev3: 0 2px 4px rgba(57,73,171,0.10), 0 8px 20px rgba(57,73,171,0.10);
         }
 
-        *, *::before, *::after { box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'DM Sans', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            user-select: none;
+            font-family: 'Roboto Flex', sans-serif;
+            background: var(--md-surface-variant);
+            color: var(--md-on-surface);
             min-height: 100vh;
-            background-image:
-                radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59,130,246,0.07) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(245,158,11,0.05) 0%, transparent 60%);
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Typography ── */
-        .font-display { font-family: 'Syne', sans-serif; }
-        .font-mono    { font-family: 'DM Mono', monospace; }
-
-        /* ── Layout ── */
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-        }
-
-        /* ── Cards ── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            transition: border-color 0.2s;
-        }
-        .card:hover { border-color: #2a3f60; }
-
-        .card-header {
+        /* ── Top App Bar (MD3 Small) ── */
+        .top-app-bar {
+            background: var(--md-surface);
+            border-bottom: 1px solid var(--md-outline-variant);
+            padding: 0 32px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--md-elev1);
+            gap: 16px;
         }
+        .app-icon {
+            width: 40px; height: 40px;
+            background: var(--md-primary-container);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .headline-small {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--md-on-surface);
+            letter-spacing: -0.01em; line-height: 1.2;
+        }
+        .body-small {
+            font-size: 0.7rem; font-weight: 400;
+            color: var(--md-on-surface-variant);
+            letter-spacing: 0.02em; margin-top: 1px;
+        }
+
+        /* ── MD3 Cards ── */
+        .md-card {
+            background: var(--md-surface);
+            border-radius: 12px;
+            box-shadow: var(--md-elev1);
+            transition: box-shadow 0.2s ease;
+            overflow: hidden;
+        }
+        .md-card:hover { box-shadow: var(--md-elev2); }
+
+        .card-header {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+        .card-leading {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .card-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .title-medium {
+            font-size: 0.9rem; font-weight: 600;
+            color: var(--md-on-surface); letter-spacing: 0.01em;
+        }
+        .label-small {
+            font-size: 0.67rem; font-weight: 400;
+            color: var(--md-on-surface-variant);
+            letter-spacing: 0.04em; margin-top: 2px;
+        }
+
+        /* ── Tonal Button (MD3) ── */
+        .md-tonal-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px;
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+            border: none; border-radius: 100px;
+            font-family: 'Roboto Flex', sans-serif;
+            font-size: 0.75rem; font-weight: 500;
+            letter-spacing: 0.04em; cursor: pointer;
+            transition: box-shadow 0.15s, filter 0.15s;
+        }
+        .md-tonal-btn:hover {
+            box-shadow: 0 1px 3px rgba(57,73,171,0.2);
+            filter: brightness(0.97);
+        }
+
+        /* ── Segmented Button group ── */
+        .seg-group {
+            display: flex; border: 1px solid var(--md-outline);
+            border-radius: 100px; overflow: hidden;
+        }
+        .seg-btn {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 7px 16px;
+            background: var(--md-surface);
+            color: var(--md-on-surface-variant);
+            border: none; border-right: 1px solid var(--md-outline);
+            font-family: 'Roboto Flex', sans-serif;
+            font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em;
+            cursor: pointer; transition: all 0.15s; white-space: nowrap;
+        }
+        .seg-btn:last-child { border-right: none; }
+        .seg-btn.active {
+            background: var(--md-primary-container);
+            color: var(--md-primary); font-weight: 600;
+        }
+        .seg-btn:not(.active):hover { background: var(--md-surface-container); }
+
+        /* ── MD3 Filled Select ── */
+        .md-select-field {
+            background: var(--md-surface-container);
+            border-radius: 4px 4px 0 0;
+            border-bottom: 2px solid var(--md-primary);
+            padding: 4px 12px 6px;
+            display: flex; flex-direction: column; gap: 1px;
+        }
+        .md-select-field label {
+            font-size: 0.6rem; font-weight: 600;
+            color: var(--md-primary); letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+        .md-select {
+            appearance: none; background: transparent;
+            border: none; outline: none;
+            font-family: 'Roboto Flex', sans-serif;
+            font-size: 0.85rem; font-weight: 500;
+            color: var(--md-on-surface); cursor: pointer;
+            min-width: 160px; padding-right: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2346464F' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 2px center;
+        }
+
+        /* ── Peak Strip ── */
+        .peak-strip {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+            padding: 8px 20px 10px;
+            background: var(--md-surface-variant);
+            border-bottom: 1px solid var(--md-outline-variant);
+            min-height: 46px;
+        }
+        .peak-strip-label {
+            font-size: 0.62rem; font-weight: 600;
+            color: var(--md-on-surface-variant);
+            letter-spacing: 0.08em; text-transform: uppercase;
+            white-space: nowrap; margin-right: 2px;
+        }
+        .peak-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 12px 4px 10px;
+            border-radius: 100px; border: 1px solid;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.68rem; font-weight: 500;
+            cursor: pointer; transition: all 0.12s; white-space: nowrap;
+        }
+        .peak-chip:hover { transform: translateY(-1px); box-shadow: var(--md-elev1); }
+        /* Traffic = warm amber */
+        .peak-chip.t { background:#FFF8E1; border-color:#FFCC80; color:#E65100; }
+        .peak-chip.t:hover { background:#FFE0B2; }
+        /* Orders = warm rose */
+        .peak-chip.o { background:#FCE4EC; border-color:#F48FB1; color:#880E4F; }
+        .peak-chip.o:hover { background:#F8BBD0; }
+        /* CVR = indigo */
+        .peak-chip.c { background:var(--md-primary-container); border-color:#9FA8DA; color:var(--md-on-primary-container); }
+        .peak-chip.c:hover { background:#d3d7f0; }
 
         /* ── Heatmap ── */
-        .heatmap-container-wrapper {
-            width: 100%;
-            max-width: 550px;
-            aspect-ratio: 5 / 6;
-            position: relative;
-            display: flex;
-            gap: 0.5rem;
-        }
-
+        .heatmap-wrapper { padding: 16px 20px 20px; display: flex; justify-content: center; }
+        .heatmap-container-wrapper { width:100%; max-width:520px; aspect-ratio:5/6; display:flex; gap:8px; }
         .heatmap-grid {
             display: grid;
-            grid-template-columns: 28px repeat(7, 1fr);
-            grid-template-rows: 22px repeat(24, 1fr);
+            grid-template-columns: 26px repeat(7,1fr);
+            grid-template-rows: 22px repeat(24,1fr);
             gap: 1px;
-            background-color: var(--border);
-            border: 1px solid var(--border);
-            width: 100%;
-            height: 100%;
-            border-radius: 6px;
-            overflow: hidden;
+            background: var(--md-outline-variant);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 6px; overflow: hidden;
+            width: 100%; height: 100%;
         }
-
         .heatmap-cell {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(0.35rem, 0.7vw, 0.55rem);
-            background-color: var(--surface2);
-            transition: background-color 0.1s, transform 0.1s;
-            font-weight: 600;
-            font-family: 'DM Mono', monospace;
-            line-height: 1;
-            position: relative;
-            box-sizing: border-box;
-            overflow: hidden;
-            color: rgba(226,232,240,0.5);
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(0.3rem, 0.6vw, 0.5rem);
+            font-weight: 500; font-family: 'Roboto Mono', monospace;
+            background: #FAFAFA; color: rgba(70,70,79,0.55);
+            cursor: crosshair; transition: filter 0.08s;
         }
-
-        .cell-selected   { box-shadow: inset 0 0 0 2px #fff; z-index: 5; }
-        .cell-selecting  { box-shadow: inset 0 0 0 2px rgba(59,130,246,0.6); z-index: 4; }
-        .cell-hover-sync { outline: 2px solid var(--accent); z-index: 10; background-color: rgba(59,130,246,0.08) !important; }
-        .heatmap-cell:hover { cursor: crosshair; }
-
+        .heatmap-cell:hover { filter: brightness(0.88); }
+        .cell-selected  { box-shadow: inset 0 0 0 2px var(--md-primary); z-index: 5; }
+        .cell-selecting { box-shadow: inset 0 0 0 2px rgba(57,73,171,0.45); z-index: 4; }
+        .cell-hover-sync { outline: 2.5px solid var(--md-primary); z-index: 10; }
         .hour-label {
-            font-size: clamp(0.42rem, 0.75vw, 9px);
-            font-weight: 500;
-            font-family: 'DM Mono', monospace;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--surface);
-            color: var(--muted);
+            font-size: clamp(0.32rem, 0.58vw, 8px);
+            font-weight: 500; font-family: 'Roboto Mono', monospace;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--md-surface-variant);
+            color: var(--md-on-surface-variant);
         }
-
         .day-label {
-            font-size: clamp(0.38rem, 0.65vw, 8px);
-            font-weight: 700;
-            font-family: 'Syne', sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--surface);
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .color-scale-bar {
-            background: linear-gradient(to bottom, #dc2626, #f59e0b, #1e3a5f);
-            width: 6px;
-            height: 100%;
-            border-radius: 3px;
-            opacity: 0.85;
-        }
-
-        /* ── Selector ── */
-        #handleSelect {
-            appearance: none;
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            color: var(--text);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.8rem;
+            font-size: clamp(0.28rem, 0.52vw, 7.5px);
             font-weight: 600;
-            padding: 0.5rem 2.5rem 0.5rem 1rem;
-            border-radius: 10px;
-            outline: none;
-            cursor: pointer;
-            min-width: 200px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            transition: border-color 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--md-surface-variant);
+            color: var(--md-on-surface-variant);
+            text-transform: uppercase; letter-spacing: 0.03em;
         }
-        #handleSelect:focus { border-color: var(--accent); }
-        #handleSelect option { background: var(--surface2); }
+        .scale-sidebar {
+            width: 14px; display: flex; flex-direction: column;
+            align-items: center; justify-content: space-between;
+            padding: 22px 0 0;
+        }
+        .scale-val {
+            font-size: 7px; font-family: 'Roboto Mono', monospace;
+            color: var(--md-on-surface-variant);
+        }
+        .color-scale-bar { width: 6px; height:100%; border-radius: 3px; flex:1; margin: 4px 0; }
+        .heat-scale { background: linear-gradient(to bottom, #7F0000,#C62828,#EF5350,#FFA726,#FFCA28,#FFF9C4,#FAFAFA); }
+        .cvr-scale  { background: linear-gradient(to bottom, #1A237E,#3949AB,#7986CB,#C5CAE9,#E8EAF6,#FAFAFA); }
 
-        /* ── AI Cards ── */
-        .insight-card {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-top: 3px solid #6366f1;
-            padding: 1.5rem;
-            border-radius: 12px;
+        /* ── Compare select (inline) ── */
+        .compare-bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 20px;
+            background: var(--md-primary-container);
+            border-bottom: 1px solid rgba(57,73,171,0.2);
         }
-        .suggestion-card {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-top: 3px solid #10b981;
-            padding: 1.5rem;
-            border-radius: 12px;
-        }
-
-        /* ── Badge ── */
-        .badge {
-            font-family: 'DM Mono', monospace;
-            font-size: 0.6rem;
-            font-weight: 500;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
+        .compare-select {
+            appearance: none; background: var(--md-surface);
+            border: 1px solid var(--md-outline); border-radius: 6px;
+            color: var(--md-on-surface);
+            font-family: 'Roboto Flex', sans-serif;
+            font-size: 0.8rem; font-weight: 500;
+            padding: 5px 28px 5px 10px; outline: none; cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2346464F' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 8px center;
+            min-width: 160px;
         }
 
-        /* ── Loading ── */
-        .spinner {
-            width: 40px; height: 40px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
+        /* ── Layout ── */
+        .heatmaps-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 20px; margin-bottom: 20px;
+        }
+
+        /* ── Loading states ── */
+        .loading-chip {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 7px 16px; border-radius: 100px;
+            background: var(--md-primary-container);
+            color: var(--md-primary);
+            font-size: 0.78rem; font-weight: 500;
+        }
+        .md-spinner {
+            width: 36px; height: 36px;
+            border: 3px solid var(--md-outline);
+            border-top-color: var(--md-primary);
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            animation: spin 0.75s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── Download btn ── */
-        .dl-btn {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.65rem;
-            font-family: 'DM Mono', monospace;
-            font-weight: 500;
-            color: var(--muted);
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: transparent;
-            cursor: pointer;
-            transition: all 0.15s;
-            letter-spacing: 0.05em;
+        /* ── AI section ── */
+        .ai-icon-bg {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: #EDE7F6;
+            display: flex; align-items: center; justify-content: center;
         }
-        .dl-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(59,130,246,0.06); }
-
-        /* ── Section label ── */
-        .section-eyebrow {
-            font-family: 'DM Mono', monospace;
-            font-size: 0.6rem;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: var(--muted);
+        .ai-section-label {
+            font-size: 0.67rem; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 14px;
+        }
+        .ai-insight-card {
+            background: var(--md-surface);
+            border: 1px solid var(--md-outline-variant);
+            border-top: 3px solid var(--md-primary);
+            border-radius: 12px; padding: 20px;
+        }
+        .ai-suggest-card {
+            background: var(--md-surface);
+            border: 1px solid var(--md-outline-variant);
+            border-top: 3px solid var(--md-tertiary);
+            border-radius: 12px; padding: 20px;
+        }
+        .ai-list-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+        .ai-list-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .ai-item-num {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.62rem; font-weight: 500;
+            min-width: 20px; padding-top: 3px;
+        }
+        .ai-item-text {
+            font-size: 0.84rem; line-height: 1.65;
+            color: var(--md-on-surface-variant);
         }
 
-        /* ── Fade-in ── */
+        /* ── Tooltip ── */
+        .cell-tooltip {
+            position: fixed;
+            background: #312E38;
+            color: #EEE;
+            padding: 6px 12px; border-radius: 6px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.68rem; font-weight: 400;
+            pointer-events: none; z-index: 9999;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        /* ── Animations ── */
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
+            from { opacity:0; transform:translateY(8px); }
+            to   { opacity:1; transform:translateY(0); }
         }
-        .fade-up { animation: fadeUp 0.4s ease forwards; }
+        .fade-up    { animation: fadeUp 0.3s ease forwards; }
+        .fade-up-d1 { opacity:0; animation: fadeUp 0.3s ease 0.07s forwards; }
+        .fade-up-d2 { opacity:0; animation: fadeUp 0.3s ease 0.14s forwards; }
 
-        /* ── Scrollbar ── */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        /* ── Status message ── */
+        #statusMessage {
+            display: none;
+            padding: 12px 20px; border-radius: 12px;
+            font-size: 0.8rem; font-weight: 500;
+            margin-bottom: 20px; border: 1px solid;
+        }
 
-        @media (max-width: 768px) {
-            .dashboard-grid { grid-template-columns: 1fr; }
+        @media (max-width: 960px) {
+            .heatmaps-grid { grid-template-columns: 1fr !important; }
+            .top-app-bar { padding: 0 16px; }
+            .page-body { padding: 16px !important; }
         }
     </style>
 </head>
-<body style="padding: 1.5rem 2rem;">
-    <div style="max-width: 1440px; margin: 0 auto;">
+<body>
 
-        <!-- ── Header ── -->
-        <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; padding-bottom:1.25rem; border-bottom:1px solid var(--border);">
-            <div style="display:flex; align-items:center; gap:1rem;">
-                <div style="width:36px; height:36px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center;">
-                    <i data-lucide="activity" style="width:18px; height:18px; color:#fff;"></i>
-                </div>
-                <div>
-                    <p class="section-eyebrow" style="margin-bottom:2px;">Analytics Dashboard</p>
-                    <h1 class="font-display" style="font-size:1.1rem; font-weight:800; color:var(--text); letter-spacing:-0.02em; line-height:1;">流量 &amp; 訂單熱力圖</h1>
-                </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:1rem;">
-                <div id="loadingIndicator" style="display:flex; align-items:center; gap:6px; padding:0.35rem 0.85rem; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.25); border-radius:8px;">
-                    <i data-lucide="loader-2" style="width:12px; height:12px; color:var(--accent); animation: spin 0.8s linear infinite;"></i>
-                    <span class="section-eyebrow" style="color:var(--accent);">連線中</span>
-                </div>
-                <div id="handleSelectorContainer" style="display:none; align-items:center; gap:0.5rem;">
-                    <span class="section-eyebrow" style="color:var(--muted);">品牌</span>
-                    <select id="handleSelect"></select>
-                </div>
-            </div>
-        </header>
+<div class="cell-tooltip" id="cellTooltip"></div>
 
-        <div id="statusMessage" style="display:none; margin-bottom:1.5rem; padding:0.75rem 1rem; border-radius:10px; font-size:0.75rem; font-weight:600; text-align:center; border:1px solid;"></div>
-
-        <!-- ── Dashboard ── -->
-        <div id="dashboardContent" style="display:none;">
-
-            <!-- Heatmaps row -->
-            <div class="dashboard-grid" style="margin-bottom:1.5rem;">
-
-                <!-- Traffic -->
-                <div class="card fade-up" id="trafficSection" style="padding:1.25rem; display:flex; flex-direction:column; align-items:center;">
-                    <div class="card-header" style="padding:0; border:none; margin-bottom:1rem; width:100%;">
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <span style="width:8px; height:8px; background:#f59e0b; border-radius:50%; display:inline-block;"></span>
-                            <span class="section-eyebrow">Traffic</span>
-                            <h2 id="trafficTitle" class="font-display" style="font-size:0.85rem; font-weight:700; color:var(--text); margin-left:4px;"></h2>
-                        </div>
-                        <button class="dl-btn" onclick="downloadSection('trafficSection', 'Traffic_Heatmap')">
-                            <i data-lucide="download" style="width:10px; height:10px;"></i> Export
-                        </button>
-                    </div>
-                    <div class="heatmap-container-wrapper">
-                        <div style="flex:1;"><div id="trafficHeatmap" style="width:100%; height:100%;" oncontextmenu="return false;"></div></div>
-                        <div style="width:10px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:1.5rem 0;">
-                            <span class="font-mono" style="font-size:7px; color:var(--muted);" id="trafficMax">0</span>
-                            <div class="color-scale-bar"></div>
-                            <span class="font-mono" style="font-size:7px; color:var(--muted);">0</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Orders -->
-                <div class="card fade-up" id="ordersSection" style="padding:1.25rem; display:flex; flex-direction:column; align-items:center; animation-delay:0.1s;">
-                    <div class="card-header" style="padding:0; border:none; margin-bottom:1rem; width:100%;">
-                        <div style="display:flex; align-items:center; gap:0.5rem;">
-                            <span style="width:8px; height:8px; background:#ef4444; border-radius:50%; display:inline-block;"></span>
-                            <span class="section-eyebrow">Orders</span>
-                            <h2 id="ordersTitle" class="font-display" style="font-size:0.85rem; font-weight:700; color:var(--text); margin-left:4px;"></h2>
-                        </div>
-                        <button class="dl-btn" onclick="downloadSection('ordersSection', 'Orders_Heatmap')">
-                            <i data-lucide="download" style="width:10px; height:10px;"></i> Export
-                        </button>
-                    </div>
-                    <div class="heatmap-container-wrapper">
-                        <div style="flex:1;"><div id="ordersHeatmap" style="width:100%; height:100%;" oncontextmenu="return false;"></div></div>
-                        <div style="width:10px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:1.5rem 0;">
-                            <span class="font-mono" style="font-size:7px; color:var(--muted);" id="ordersMax">0</span>
-                            <div class="color-scale-bar"></div>
-                            <span class="font-mono" style="font-size:7px; color:var(--muted);">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- AI Insights -->
-            <div class="card fade-up" style="animation-delay:0.2s; overflow:hidden;">
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.5rem; border-bottom:1px solid var(--border);">
-                    <div style="display:flex; align-items:center; gap:0.75rem;">
-                        <div style="width:28px; height:28px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center;">
-                            <i data-lucide="sparkles" style="width:13px; height:13px; color:#818cf8;"></i>
-                        </div>
-                        <div>
-                            <p class="section-eyebrow" style="margin-bottom:1px;">Gemini AI</p>
-                            <h2 class="font-display" style="font-size:0.85rem; font-weight:700; color:var(--text);">營運洞察與實戰建議</h2>
-                        </div>
-                    </div>
-                    <span id="aiLoading" style="display:none; align-items:center; gap:6px; padding:0.3rem 0.75rem; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:6px;">
-                        <i data-lucide="loader-2" style="width:11px; height:11px; color:#818cf8; animation:spin 0.8s linear infinite;"></i>
-                        <span class="section-eyebrow" style="color:#818cf8;">分析中</span>
-                    </span>
-                </div>
-                <div style="padding:1.5rem;" id="aiDisplayArea">
-                    <div style="display:flex; align-items:center; justify-content:center; padding:3rem 0; color:var(--muted);">
-                        <p class="font-mono" style="font-size:0.7rem; letter-spacing:0.1em;">— 等待數據載入 —</p>
-                    </div>
-                </div>
-            </div>
+<!-- ── Top App Bar ── -->
+<header class="top-app-bar">
+    <div style="display:flex;align-items:center;gap:14px;">
+        <div class="app-icon">
+            <i data-lucide="activity" style="width:18px;height:18px;color:var(--md-primary);"></i>
         </div>
-
-        <!-- Initial loader -->
-        <div id="initialLoader" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8rem 0;">
-            <div class="spinner" style="margin-bottom:1.5rem;"></div>
-            <p class="section-eyebrow" style="color:var(--muted);">正在串接 Google Sheets</p>
+        <div>
+            <div class="headline-small">流量 &amp; 訂單分析</div>
+            <div class="body-small">E-commerce Analytics Dashboard</div>
         </div>
-
     </div>
 
-    <script>
-        lucide.createIcons();
-        const SHEET_ID = "1DrKOSCFSFq9X-nD37beBAnnntAP06vf7jyEIGCPpQ-E";
-        const GID = "1526535922";
-        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div id="loadingIndicator" class="loading-chip">
+            <i data-lucide="loader-2" style="width:13px;height:13px;animation:spin 0.8s linear infinite;"></i>
+            載入資料中
+        </div>
 
-        const handleSelect = document.getElementById('handleSelect');
-        const handleSelectorContainer = document.getElementById('handleSelectorContainer');
-        const dashboardContent = document.getElementById('dashboardContent');
-        const initialLoader = document.getElementById('initialLoader');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const statusMessage = document.getElementById('statusMessage');
-        const aiDisplayArea = document.getElementById('aiDisplayArea');
-        const aiLoading = document.getElementById('aiLoading');
+        <div id="controlsBar" style="display:none;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div class="md-select-field">
+                <label for="handleSelect">品牌</label>
+                <select id="handleSelect" class="md-select"></select>
+            </div>
+            <div class="seg-group">
+                <button class="seg-btn active" id="chipSingle" onclick="setMode('single')">
+                    <i data-lucide="square" style="width:11px;height:11px;"></i> 單品牌
+                </button>
+                <button class="seg-btn" id="chipCompare" onclick="setMode('compare')">
+                    <i data-lucide="columns-2" style="width:11px;height:11px;"></i> 品牌比較
+                </button>
+                <button class="seg-btn" id="chipCvr" onclick="setMode('cvr')">
+                    <i data-lucide="percent" style="width:11px;height:11px;"></i> 轉換率
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
 
-        let selections = { traffic: [], orders: [] };
-        let dragInfo = { isDragging: false, startH: null, startW: null, currentH: null, currentW: null, type: null };
-        let aiCache = {};
-        let rawData = [];
-        const days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'];
+<!-- ── Page Body ── -->
+<div class="page-body" style="padding:24px 32px;max-width:1440px;margin:0 auto;">
+    <div id="statusMessage"></div>
 
-        window.onload = fetchSheetData;
+    <!-- Initial loader -->
+    <div id="initialLoader" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:96px 0;">
+        <div class="md-spinner" style="margin-bottom:20px;"></div>
+        <p style="font-size:0.85rem;color:var(--md-on-surface-variant);font-weight:500;letter-spacing:0.02em;">
+            正在串接 Google Sheets 雲端資料
+        </p>
+    </div>
 
-        async function fetchSheetData() {
-            try {
-                const response = await fetch(CSV_URL);
-                if (!response.ok) throw new Error("HTTP 錯誤: " + response.status);
-                const csvText = await response.text();
-                Papa.parse(csvText, {
-                    header: true, skipEmptyLines: true,
-                    transformHeader: (h) => h.trim().replace(/^\ufeff/, ""),
-                    complete: (results) => processData(results.data),
-                });
-            } catch (err) { showMessage("數據擷取失敗，請確認該 Google Sheet 是否已發佈至網路。", "error"); }
-        }
+    <!-- Dashboard -->
+    <div id="dashboardContent" style="display:none;">
 
-        function processData(data) {
-            if (!data || data.length === 0) return;
-            const headers = Object.keys(data[0]);
-            const findCol = (targets) => {
-                let match = headers.find(h => targets.some(t => h === t));
-                if (match) return match;
-                return headers.find(h => targets.some(t => h.toLowerCase() === t.toLowerCase()));
-            };
-            const cols = {
-                handle: findCol(['handle', '品牌', '店家']),
-                weeks: findCol(['weeks', '星期', 'week']),
-                hours: findCol(['hours', '時段', 'hour']),
-                visited: findCol(['Avg_Visited', '流量', 'visited']),
-                orders: findCol(['Total_Avg_Online_Orders', '訂單', 'orders', 'Total_Avg_Online_Orders'])
-            };
-            rawData = data.map(row => {
-                const cleanNum = (val) => {
-                    const num = parseFloat(String(val || 0).replace(/[$, ]/g, ''));
-                    return isNaN(num) ? 0 : num;
-                };
-                return {
-                    handle: String(row[cols.handle] || 'Unknown').trim(),
-                    weeks: String(row[cols.weeks] || '').trim(),
-                    hours: parseInt(row[cols.hours]),
-                    visited: cleanNum(row[cols.visited]),
-                    orders: cleanNum(row[cols.orders])
-                };
-            }).filter(d => !isNaN(d.hours));
+        <div class="heatmaps-grid" id="heatmapsGrid">
 
-            const handles = [...new Set(rawData.map(d => d.handle))];
-            handleSelect.innerHTML = handles.map(h => `<option value="${h}">${h}</option>`).join('');
-            loadingIndicator.style.display = 'none';
-            handleSelectorContainer.style.display = 'flex';
-            initialLoader.style.display = 'none';
-            dashboardContent.style.display = 'block';
-            const target = handles.includes('annaeveryday') ? 'annaeveryday' : handles[0];
-            handleSelect.value = target;
-            renderHeatmaps(target);
-        }
+            <!-- ── Traffic card ── -->
+            <div class="md-card fade-up" id="trafficSection">
+                <div class="card-header">
+                    <div class="card-leading">
+                        <div class="card-icon" style="background:#FFF3E0;">
+                            <i data-lucide="users" style="width:16px;height:16px;color:#E65100;"></i>
+                        </div>
+                        <div>
+                            <div class="title-medium" id="trafficTitle">流量分佈</div>
+                            <div class="label-small">Avg. Visitors per Hour</div>
+                        </div>
+                    </div>
+                    <button class="md-tonal-btn" onclick="downloadSection('trafficSection','Traffic_Heatmap')">
+                        <i data-lucide="download" style="width:12px;height:12px;"></i> Export
+                    </button>
+                </div>
+                <!-- Peak strip -->
+                <div class="peak-strip" id="trafficPeakStrip">
+                    <span class="peak-strip-label">Top Peaks</span>
+                </div>
+                <div class="heatmap-wrapper">
+                    <div class="heatmap-container-wrapper">
+                        <div style="flex:1;">
+                            <div id="trafficHeatmap" style="width:100%;height:100%;" oncontextmenu="return false;"></div>
+                        </div>
+                        <div class="scale-sidebar">
+                            <span class="scale-val" id="trafficMax">0</span>
+                            <div class="color-scale-bar heat-scale"></div>
+                            <span class="scale-val">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        handleSelect.addEventListener('change', (e) => {
-            selections.traffic = []; selections.orders = [];
-            renderHeatmaps(e.target.value);
+            <!-- ── Orders card ── -->
+            <div class="md-card fade-up-d1" id="ordersSection">
+                <div class="card-header">
+                    <div class="card-leading">
+                        <div class="card-icon" style="background:#FCE4EC;">
+                            <i data-lucide="shopping-cart" style="width:16px;height:16px;color:#C2185B;"></i>
+                        </div>
+                        <div>
+                            <div class="title-medium" id="ordersTitle">訂單分佈</div>
+                            <div class="label-small">Avg. Online Orders per Hour</div>
+                        </div>
+                    </div>
+                    <button class="md-tonal-btn" onclick="downloadSection('ordersSection','Orders_Heatmap')">
+                        <i data-lucide="download" style="width:12px;height:12px;"></i> Export
+                    </button>
+                </div>
+                <div class="peak-strip" id="ordersPeakStrip">
+                    <span class="peak-strip-label">Top Peaks</span>
+                </div>
+                <div class="heatmap-wrapper">
+                    <div class="heatmap-container-wrapper">
+                        <div style="flex:1;">
+                            <div id="ordersHeatmap" style="width:100%;height:100%;" oncontextmenu="return false;"></div>
+                        </div>
+                        <div class="scale-sidebar">
+                            <span class="scale-val" id="ordersMax">0</span>
+                            <div class="color-scale-bar heat-scale"></div>
+                            <span class="scale-val">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── CVR card (hidden by default) ── -->
+            <div class="md-card fade-up-d2" id="cvrSection" style="display:none;">
+                <div class="card-header">
+                    <div class="card-leading">
+                        <div class="card-icon" style="background:var(--md-primary-container);">
+                            <i data-lucide="percent" style="width:16px;height:16px;color:var(--md-primary);"></i>
+                        </div>
+                        <div>
+                            <div class="title-medium" id="cvrTitle">訂單轉換率</div>
+                            <div class="label-small">Orders ÷ Visitors × 100%</div>
+                        </div>
+                    </div>
+                    <button class="md-tonal-btn" onclick="downloadSection('cvrSection','CVR_Heatmap')">
+                        <i data-lucide="download" style="width:12px;height:12px;"></i> Export
+                    </button>
+                </div>
+                <div class="peak-strip" id="cvrPeakStrip">
+                    <span class="peak-strip-label">High CVR Windows</span>
+                </div>
+                <div class="heatmap-wrapper">
+                    <div class="heatmap-container-wrapper">
+                        <div style="flex:1;">
+                            <div id="cvrHeatmap" style="width:100%;height:100%;" oncontextmenu="return false;"></div>
+                        </div>
+                        <div class="scale-sidebar">
+                            <span class="scale-val" id="cvrMax">0%</span>
+                            <div class="color-scale-bar cvr-scale"></div>
+                            <span class="scale-val">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Compare B card (hidden by default) ── -->
+            <div class="md-card fade-up-d1" id="compareBSection" style="display:none;">
+                <div class="compare-bar">
+                    <i data-lucide="git-compare-arrows" style="width:13px;height:13px;color:var(--md-primary);"></i>
+                    <span style="font-size:0.7rem;font-weight:600;color:var(--md-on-primary-container);letter-spacing:0.06em;text-transform:uppercase;">比較品牌</span>
+                    <select id="compareBSelect" class="compare-select" style="margin-left:auto;" onchange="onCompareBChange()"></select>
+                </div>
+                <div class="card-header">
+                    <div class="card-leading">
+                        <div class="card-icon" style="background:#F3E5F5;">
+                            <i data-lucide="users" style="width:16px;height:16px;color:#7B1FA2;"></i>
+                        </div>
+                        <div>
+                            <div class="title-medium" id="compareBTitle">流量分佈</div>
+                            <div class="label-small">Avg. Visitors per Hour</div>
+                        </div>
+                    </div>
+                    <button class="md-tonal-btn" onclick="downloadSection('compareBSection','CompareB_Heatmap')">
+                        <i data-lucide="download" style="width:12px;height:12px;"></i> Export
+                    </button>
+                </div>
+                <div class="peak-strip" id="compareBPeakStrip">
+                    <span class="peak-strip-label">Top Peaks</span>
+                </div>
+                <div class="heatmap-wrapper">
+                    <div class="heatmap-container-wrapper">
+                        <div style="flex:1;">
+                            <div id="compareBHeatmap" style="width:100%;height:100%;" oncontextmenu="return false;"></div>
+                        </div>
+                        <div class="scale-sidebar">
+                            <span class="scale-val" id="compareBMax">0</span>
+                            <div class="color-scale-bar heat-scale"></div>
+                            <span class="scale-val">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /heatmapsGrid -->
+
+        <!-- ── AI Insights card ── -->
+        <div class="md-card fade-up-d2">
+            <div class="card-header">
+                <div class="card-leading">
+                    <div class="ai-icon-bg">
+                        <i data-lucide="sparkles" style="width:16px;height:16px;color:#7C4DFF;"></i>
+                    </div>
+                    <div>
+                        <div class="title-medium">AI 營運洞察與實戰建議</div>
+                        <div class="label-small">Powered by Gemini · 專為電商顧問設計</div>
+                    </div>
+                </div>
+                <div id="aiLoading" style="display:none;" class="loading-chip">
+                    <i data-lucide="loader-2" style="width:12px;height:12px;color:#7C4DFF;animation:spin 0.8s linear infinite;"></i>
+                    <span style="color:#7C4DFF;">分析中</span>
+                </div>
+            </div>
+            <div style="padding:20px;" id="aiDisplayArea">
+                <div style="display:flex;align-items:center;justify-content:center;padding:40px 0;color:var(--md-on-surface-variant);">
+                    <p style="font-size:0.8rem;letter-spacing:0.04em;">等待數據載入以啟動分析</p>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /dashboardContent -->
+</div><!-- /page-body -->
+
+<script>
+lucide.createIcons();
+
+const SHEET_ID = "1DrKOSCFSFq9X-nD37beBAnnntAP06vf7jyEIGCPpQ-E";
+const GID      = "1526535922";
+const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+const $ = id => document.getElementById(id);
+const handleSelect     = $('handleSelect');
+const compareBSelect   = $('compareBSelect');
+const dashboardContent = $('dashboardContent');
+const initialLoader    = $('initialLoader');
+const loadingIndicator = $('loadingIndicator');
+const controlsBar      = $('controlsBar');
+const statusMessage    = $('statusMessage');
+const aiDisplayArea    = $('aiDisplayArea');
+const aiLoading        = $('aiLoading');
+const tooltip          = $('cellTooltip');
+
+let rawData     = [];
+let aiCache     = {};
+let selections  = { traffic:[], orders:[], cvr:[], compareB:[] };
+let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, currentW:null, type:null };
+let currentMode = 'single';
+const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+window.onload = fetchSheetData;
+
+// ── Data fetch & process ──────────────────────────────────────
+async function fetchSheetData() {
+    try {
+        const r = await fetch(CSV_URL);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        Papa.parse(await r.text(), {
+            header: true, skipEmptyLines: true,
+            transformHeader: h => h.trim().replace(/^\ufeff/, ''),
+            complete: res => processData(res.data),
         });
+    } catch(e) { showMessage("數據擷取失敗：" + e.message, "error"); }
+}
 
-        function renderHeatmaps(handle) {
-            document.getElementById('trafficTitle').textContent = `${handle} 流量分佈`;
-            document.getElementById('ordersTitle').textContent = `${handle} 訂單分佈`;
-            const data = rawData.filter(d => d.handle === handle);
-            const tGrid = Array.from({length: 24}, () => Array(7).fill(0));
-            const oGrid = Array.from({length: 24}, () => Array(7).fill(0));
-            let maxT = 0, maxO = 0;
-            data.forEach(d => {
-                const w = getWeekIdx(d.weeks);
-                const h = d.hours;
-                if (h >= 0 && h < 24 && w !== -1) {
-                    tGrid[h][w] = d.visited; oGrid[h][w] = d.orders;
-                    maxT = Math.max(maxT, tGrid[h][w]); maxO = Math.max(maxO, oGrid[h][w]);
-                }
-            });
-            document.getElementById('trafficMax').textContent = Math.round(maxT).toLocaleString();
-            document.getElementById('ordersMax').textContent = Math.round(maxO).toLocaleString();
-            drawGrid('trafficHeatmap', tGrid, maxT, 'traffic');
-            drawGrid('ordersHeatmap', oGrid, maxO, 'orders');
+function processData(data) {
+    if (!data || !data.length) return;
+    const headers  = Object.keys(data[0]);
+    const findCol  = targets => headers.find(h => targets.some(t => h === t))
+                             || headers.find(h => targets.some(t => h.toLowerCase() === t.toLowerCase()));
+    const cleanNum = v => { const n = parseFloat(String(v||0).replace(/[$, ]/g,'')); return isNaN(n) ? 0 : n; };
+    const cols = {
+        handle:  findCol(['handle','品牌','店家']),
+        weeks:   findCol(['weeks','Weeks','星期','week']),
+        hours:   findCol(['hours','Hours','時段','hour']),
+        visited: findCol(['Avg_Visited','流量','visited']),
+        orders:  findCol(['Total_Avg_Online_Orders','訂單','orders']),
+    };
+    rawData = data.map(row => ({
+        handle:  String(row[cols.handle]  || 'Unknown').trim(),
+        weeks:   String(row[cols.weeks]   || '').trim(),
+        hours:   parseInt(row[cols.hours]),
+        visited: cleanNum(row[cols.visited]),
+        orders:  cleanNum(row[cols.orders]),
+    })).filter(d => !isNaN(d.hours));
 
-            if (aiCache[handle]) {
-                renderAIHTML(aiCache[handle]);
+    const handles = [...new Set(rawData.map(d => d.handle))];
+    handleSelect.innerHTML   = handles.map(h => `<option value="${h}">${h}</option>`).join('');
+    compareBSelect.innerHTML = handles.map(h => `<option value="${h}">${h}</option>`).join('');
+    if (handles.length > 1) compareBSelect.value = handles[1];
+
+    loadingIndicator.style.display = 'none';
+    controlsBar.style.display      = 'flex';
+    initialLoader.style.display    = 'none';
+    dashboardContent.style.display = 'block';
+
+    const target = handles.includes('annaeveryday') ? 'annaeveryday' : handles[0];
+    handleSelect.value = target;
+    renderAll();
+}
+
+// ── Mode switching ────────────────────────────────────────────
+function setMode(mode) {
+    currentMode = mode;
+    ['single','compare','cvr'].forEach(m => {
+        $('chip' + m.charAt(0).toUpperCase() + m.slice(1)).classList.toggle('active', m === mode);
+    });
+    $('cvrSection').style.display      = mode === 'cvr'     ? '' : 'none';
+    $('compareBSection').style.display = mode === 'compare' ? '' : 'none';
+    $('heatmapsGrid').style.gridTemplateColumns = mode === 'cvr' ? '1fr 1fr 1fr' : '1fr 1fr';
+    selections = { traffic:[], orders:[], cvr:[], compareB:[] };
+    renderAll();
+    lucide.createIcons();
+}
+
+handleSelect.addEventListener('change', () => {
+    selections = { traffic:[], orders:[], cvr:[], compareB:[] };
+    renderAll();
+});
+function onCompareBChange() { selections.compareB = []; renderCompareB(); }
+
+// ── Render orchestration ──────────────────────────────────────
+function renderAll() {
+    const handle = handleSelect.value;
+    const data   = rawData.filter(d => d.handle === handle);
+    const tGrid  = buildGrid(data, 'visited');
+    const oGrid  = buildGrid(data, 'orders');
+    const maxT   = gridMax(tGrid);
+    const maxO   = gridMax(oGrid);
+
+    $('trafficTitle').textContent = `${handle} · 流量`;
+    $('ordersTitle').textContent  = `${handle} · 訂單`;
+    $('trafficMax').textContent   = Math.round(maxT).toLocaleString();
+    $('ordersMax').textContent    = Math.round(maxO).toLocaleString();
+
+    drawGrid('trafficHeatmap', tGrid, maxT, 'traffic', 'heat', tGrid, oGrid);
+    drawGrid('ordersHeatmap',  oGrid, maxO, 'orders',  'heat', tGrid, oGrid);
+    renderPeakStrip('trafficPeakStrip', tGrid, 't');
+    renderPeakStrip('ordersPeakStrip',  oGrid, 'o');
+
+    if (currentMode === 'cvr') {
+        const cvrGrid = buildCVRGrid(tGrid, oGrid);
+        const maxCVR  = gridMax(cvrGrid);
+        $('cvrTitle').textContent = `${handle} · 轉換率`;
+        $('cvrMax').textContent   = (maxCVR * 100).toFixed(1) + '%';
+        drawGrid('cvrHeatmap', cvrGrid, maxCVR, 'cvr', 'cvr', tGrid, oGrid);
+        renderCVRPeakStrip('cvrPeakStrip', cvrGrid);
+    }
+    if (currentMode === 'compare') renderCompareB();
+
+    if (aiCache[handle]) renderAIHTML(aiCache[handle]);
+    else runAI(handle, tGrid, oGrid);
+}
+
+function renderCompareB() {
+    const handle = compareBSelect.value;
+    if (!handle) return;
+    const data  = rawData.filter(d => d.handle === handle);
+    const tGrid = buildGrid(data, 'visited');
+    const oGrid = buildGrid(data, 'orders');
+    const maxT  = gridMax(tGrid);
+    $('compareBTitle').textContent = `${handle} · 流量`;
+    $('compareBMax').textContent   = Math.round(maxT).toLocaleString();
+    drawGrid('compareBHeatmap', tGrid, maxT, 'compareB', 'heat', tGrid, oGrid);
+    renderPeakStrip('compareBPeakStrip', tGrid, 't');
+}
+
+// ── Grid builders ─────────────────────────────────────────────
+function buildGrid(data, field) {
+    const g = Array.from({length:24}, () => Array(7).fill(0));
+    data.forEach(d => {
+        const w = getWeekIdx(d.weeks), h = d.hours;
+        if (h >= 0 && h < 24 && w !== -1) g[h][w] = d[field];
+    });
+    return g;
+}
+function buildCVRGrid(tGrid, oGrid) {
+    return tGrid.map((row, h) => row.map((t, w) => t > 0 ? oGrid[h][w] / t : 0));
+}
+function gridMax(g) { return Math.max(0, ...g.flat()); }
+
+// ── Draw heatmap ──────────────────────────────────────────────
+function drawGrid(containerId, grid, max, type, palette, tRef, oRef) {
+    const cont = $(containerId);
+    cont.innerHTML = '';
+    const g = document.createElement('div');
+    g.className = 'heatmap-grid';
+    g.id = `${type}-grid-element`;
+    g.appendChild(document.createElement('div')); // corner spacer
+    days.forEach(day => {
+        const d = document.createElement('div');
+        d.className = 'day-label'; d.textContent = day;
+        g.appendChild(d);
+    });
+    grid.forEach((row, h) => {
+        const lbl = document.createElement('div');
+        lbl.className = 'hour-label';
+        lbl.textContent = h < 10 ? '0' + h : h;
+        g.appendChild(lbl);
+        row.forEach((v, w) => {
+            const c = document.createElement('div');
+            c.className = 'heatmap-cell'; c.dataset.h = h; c.dataset.w = w;
+            const ratio = max > 0 ? v / max : 0;
+            c.style.backgroundColor = palette === 'cvr' ? getCVRColor(ratio) : getHeatColor(ratio);
+            c.style.color = ratio > 0.5 ? 'rgba(255,255,255,0.92)' : 'rgba(70,70,79,0.6)';
+            if (palette === 'cvr') {
+                c.textContent = v > 0 ? (v * 100).toFixed(1) + '%' : '';
             } else {
-                runAI(handle, tGrid, oGrid);
+                c.textContent = v > 0 ? (v < 10 ? v.toFixed(1) : Math.round(v)) : '';
             }
-        }
+            if (isCellSelected(h, w, type)) c.classList.add('cell-selected');
+            c.addEventListener('mousedown', e => onCellMouseDown(e, h, w, type));
+            c.addEventListener('mousemove', e => onCellEnter(e, h, w, type, v, palette, tRef, oRef));
+            c.addEventListener('mouseleave', onCellLeave);
+            g.appendChild(c);
+        });
+    });
+    cont.appendChild(g);
+    // cross-highlight on enter
+    cont.querySelectorAll('.heatmap-cell').forEach(c => {
+        c.addEventListener('mouseenter', () => {
+            document.querySelectorAll(`.heatmap-cell[data-h="${c.dataset.h}"][data-w="${c.dataset.w}"]`)
+                    .forEach(x => x.classList.add('cell-hover-sync'));
+        });
+        c.addEventListener('mouseleave', () => {
+            document.querySelectorAll('.cell-hover-sync').forEach(x => x.classList.remove('cell-hover-sync'));
+        });
+    });
+}
 
-        function drawGrid(id, grid, max, type) {
-            const container = document.getElementById(id);
-            container.innerHTML = '';
-            const g = document.createElement('div');
-            g.className = 'heatmap-grid';
-            g.id = `${type}-grid-element`;
-            g.appendChild(document.createElement('div'));
-            days.forEach(day => {
-                const d = document.createElement('div');
-                d.className = 'day-label'; d.textContent = day;
-                g.appendChild(d);
+// ── Peak strips ───────────────────────────────────────────────
+function renderPeakStrip(stripId, grid, chipClass) {
+    const strip = $(stripId);
+    const lbl   = strip.querySelector('.peak-strip-label');
+    strip.innerHTML = ''; strip.appendChild(lbl);
+    const flat = grid.flatMap((row,h) => row.map((v,w) => ({h,w,v}))).filter(x=>x.v>0);
+    flat.sort((a,b) => b.v - a.v).slice(0, 3).forEach(({h, w, v}) => {
+        const chip = document.createElement('button');
+        chip.className = `peak-chip ${chipClass}`;
+        chip.innerHTML = `<i data-lucide="clock" style="width:10px;height:10px;"></i> ${days[w]}&nbsp;${h<10?'0'+h:h}:00&nbsp;&nbsp;·&nbsp;&nbsp;${Math.round(v).toLocaleString()}`;
+        chip.onclick = () => flashCell(h, w);
+        strip.appendChild(chip);
+    });
+    lucide.createIcons();
+}
+
+function renderCVRPeakStrip(stripId, cvrGrid) {
+    const strip = $(stripId);
+    const lbl   = strip.querySelector('.peak-strip-label');
+    strip.innerHTML = ''; strip.appendChild(lbl);
+    const flat = cvrGrid.flatMap((row,h) => row.map((v,w) => ({h,w,v}))).filter(x=>x.v>0);
+    flat.sort((a,b) => b.v - a.v).slice(0, 3).forEach(({h, w, v}) => {
+        const chip = document.createElement('button');
+        chip.className = 'peak-chip c';
+        chip.innerHTML = `<i data-lucide="trending-up" style="width:10px;height:10px;"></i> ${days[w]}&nbsp;${h<10?'0'+h:h}:00&nbsp;&nbsp;·&nbsp;&nbsp;${(v*100).toFixed(1)}%`;
+        chip.onclick = () => flashCell(h, w);
+        strip.appendChild(chip);
+    });
+    lucide.createIcons();
+}
+
+function flashCell(h, w) {
+    document.querySelectorAll(`.heatmap-cell[data-h="${h}"][data-w="${w}"]`).forEach(c => {
+        c.classList.add('cell-hover-sync');
+        setTimeout(() => c.classList.remove('cell-hover-sync'), 1600);
+    });
+}
+
+// ── Tooltip ───────────────────────────────────────────────────
+function onCellEnter(e, h, w, type, v, palette, tRef, oRef) {
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 38) + 'px';
+    const tV = tRef && tRef[h] ? tRef[h][w] : 0;
+    const oV = oRef && oRef[h] ? oRef[h][w] : 0;
+    const cvrStr = tV > 0 ? ((oV / tV) * 100).toFixed(1) + '%' : '—';
+    const hStr = h < 10 ? '0' + h : h;
+    if (palette === 'cvr') {
+        tooltip.textContent = `${days[w]} ${hStr}:00   CVR: ${(v*100).toFixed(2)}%`;
+    } else if (type === 'traffic' || type === 'compareB') {
+        tooltip.textContent = `${days[w]} ${hStr}:00   訪客: ${Math.round(tV).toLocaleString()}   CVR: ${cvrStr}`;
+    } else {
+        tooltip.textContent = `${days[w]} ${hStr}:00   訂單: ${Math.round(oV).toLocaleString()}   CVR: ${cvrStr}`;
+    }
+}
+function onCellLeave() {
+    tooltip.style.display = 'none';
+    document.querySelectorAll('.cell-hover-sync').forEach(c => c.classList.remove('cell-hover-sync'));
+}
+
+// ── Cell selection ────────────────────────────────────────────
+function onCellMouseDown(e, h, w, type) {
+    const idx = (selections[type]||[]).findIndex(s => h>=s.hStart&&h<=s.hEnd&&w>=s.wStart&&w<=s.wEnd);
+    if (idx !== -1) { selections[type].splice(idx, 1); renderAll(); return; }
+    dragInfo = { isDragging:true, startH:h, startW:w, currentH:h, currentW:w, type };
+    window.addEventListener('mouseup', onMouseUp);
+    updateSelectionPreview();
+}
+function onMouseUp() {
+    if (!dragInfo.isDragging) return;
+    const hR = [Math.min(dragInfo.startH,dragInfo.currentH), Math.max(dragInfo.startH,dragInfo.currentH)];
+    const wR = [Math.min(dragInfo.startW,dragInfo.currentW), Math.max(dragInfo.startW,dragInfo.currentW)];
+    selections[dragInfo.type].push({ hStart:hR[0], hEnd:hR[1], wStart:wR[0], wEnd:wR[1] });
+    dragInfo.isDragging = false;
+    window.removeEventListener('mouseup', onMouseUp);
+    renderAll();
+}
+function updateSelectionPreview() {
+    const el = $(`${dragInfo.type}-grid-element`);
+    if (!el) return;
+    const hR = [Math.min(dragInfo.startH,dragInfo.currentH), Math.max(dragInfo.startH,dragInfo.currentH)];
+    const wR = [Math.min(dragInfo.startW,dragInfo.currentW), Math.max(dragInfo.startW,dragInfo.currentW)];
+    el.querySelectorAll('.heatmap-cell').forEach(c => {
+        const ch = parseInt(c.dataset.h), cw = parseInt(c.dataset.w);
+        c.classList.toggle('cell-selecting', ch>=hR[0]&&ch<=hR[1]&&cw>=wR[0]&&cw<=wR[1]);
+    });
+}
+function isCellSelected(h, w, type) {
+    return (selections[type]||[]).some(s => h>=s.hStart&&h<=s.hEnd&&w>=s.wStart&&w<=s.wEnd);
+}
+
+// ── Color scales ──────────────────────────────────────────────
+function getHeatColor(p) {
+    if (p <= 0)    return '#FAFAFA';
+    if (p < 0.08)  return '#FFF9C4';
+    if (p < 0.20)  return '#FFF176';
+    if (p < 0.35)  return '#FFCA28';
+    if (p < 0.52)  return '#FFA726';
+    if (p < 0.70)  return '#EF5350';
+    if (p < 0.88)  return '#C62828';
+    return '#7F0000';
+}
+function getCVRColor(p) {
+    if (p <= 0)    return '#FAFAFA';
+    if (p < 0.12)  return '#E8EAF6';
+    if (p < 0.28)  return '#C5CAE9';
+    if (p < 0.48)  return '#7986CB';
+    if (p < 0.68)  return '#3949AB';
+    if (p < 0.86)  return '#283593';
+    return '#1A237E';
+}
+function getWeekIdx(s) {
+    const l = s.toLowerCase().trim();
+    const map = {
+        'mon':0,'monday':0,'星期一':0,
+        'tue':1,'tuesday':1,'tues':1,'星期二':1,
+        'wed':2,'wednesday':2,'星期三':2,
+        'thu':3,'thurs':3,'thursday':3,'星期四':3,
+        'fri':4,'friday':4,'星期五':4,
+        'sat':5,'saturday':5,'星期六':5,
+        'sun':6,'sunday':6,'星期日':6,
+        '1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6
+    };
+    for (let k in map) if (l === k || l.includes(k)) return map[k];
+    return -1;
+}
+
+// ── Utility ───────────────────────────────────────────────────
+function showMessage(text, type) {
+    const isErr = type === 'error';
+    Object.assign(statusMessage.style, {
+        display: 'block',
+        background: isErr ? 'var(--md-error-container)' : '#E8F5E9',
+        color: isErr ? 'var(--md-error)' : '#2E7D32',
+        borderColor: isErr ? '#F1998E' : '#A5D6A7',
+    });
+    statusMessage.textContent = text;
+}
+
+async function downloadSection(id, fileName) {
+    const el  = $(id);
+    const btn = el.querySelector('button'); btn.style.display = 'none';
+    const canvas = await html2canvas(el, {
+        scale:3, useCORS:true, backgroundColor:'#fff',
+        onclone: clonedDoc => {
+            const cel = clonedDoc.getElementById(id);
+            cel.querySelectorAll('.heatmap-cell,.hour-label,.day-label').forEach(e => {
+                const r = e.getBoundingClientRect();
+                e.style.display='table'; e.style.width=r.width+'px'; e.style.height=r.height+'px';
+                e.style.padding='0'; e.style.margin='0';
+                const txt=e.innerHTML, fs=window.getComputedStyle(e).fontSize;
+                e.innerHTML=`<div style="display:table-cell;vertical-align:middle;text-align:center;width:100%;height:${r.height}px;font-family:Arial,sans-serif;font-size:${fs};font-weight:600;line-height:1;">${txt}</div>`;
             });
-            grid.forEach((row, h) => {
-                const label = document.createElement('div');
-                label.className = 'hour-label';
-                label.style.color = h <= 6 ? '#6366f1' : (h <= 18 ? '#f59e0b' : '#3b82f6');
-                label.textContent = h;
-                g.appendChild(label);
-                row.forEach((v, w) => {
-                    const c = document.createElement('div');
-                    c.className = 'heatmap-cell'; c.dataset.h = h; c.dataset.w = w;
-                    c.textContent = v > 0 ? (v < 10 ? v.toFixed(1) : Math.round(v)) : '0';
-                    const ratio = max > 0 ? v / max : 0;
-                    c.style.backgroundColor = getHexColor(ratio);
-                    c.style.color = ratio > 0.5 ? 'rgba(255,255,255,0.9)' : 'rgba(100,116,139,0.7)';
-                    if (isCellInSelections(h, w, type)) c.classList.add('cell-selected');
-                    c.addEventListener('mousedown', (e) => onCellMouseDown(e, h, w, type));
-                    c.addEventListener('mouseenter', (e) => onCellMouseEnter(h, w, type));
-                    c.addEventListener('mouseleave', () => onCellMouseLeave());
-                    g.appendChild(c);
-                });
-            });
-            container.appendChild(g);
         }
+    });
+    btn.style.display = 'inline-flex';
+    const a = document.createElement('a');
+    a.download = `${fileName}.jpg`; a.href = canvas.toDataURL('image/jpeg', 0.95); a.click();
+}
 
-        function onCellMouseEnter(h, w, type) {
-            const hInt = parseInt(h), wInt = parseInt(w);
-            if (dragInfo.isDragging && dragInfo.type === type) {
-                dragInfo.currentH = hInt; dragInfo.currentW = wInt;
-                updateGridSelectionPreview();
-            }
-            const allCells = document.querySelectorAll(`.heatmap-cell[data-h="${hInt}"][data-w="${wInt}"]`);
-            allCells.forEach(cell => cell.classList.add('cell-hover-sync'));
-        }
-
-        function onCellMouseLeave() {
-            document.querySelectorAll('.cell-hover-sync').forEach(cell => cell.classList.remove('cell-hover-sync'));
-        }
-
-        function onCellMouseDown(e, h, w, type) {
-            const existingIndex = selections[type].findIndex(sel => h >= sel.hStart && h <= sel.hEnd && w >= sel.wStart && w <= sel.wEnd);
-            if (existingIndex !== -1) {
-                selections[type].splice(existingIndex, 1);
-                renderHeatmaps(handleSelect.value);
-                return;
-            }
-            dragInfo.isDragging = true; dragInfo.startH = h; dragInfo.startW = w;
-            dragInfo.currentH = h; dragInfo.currentW = w; dragInfo.type = type;
-            window.addEventListener('mouseup', onGlobalMouseUp);
-            updateGridSelectionPreview();
-        }
-
-        function onGlobalMouseUp() {
-            if (!dragInfo.isDragging) return;
-            const hRange = [Math.min(dragInfo.startH, dragInfo.currentH), Math.max(dragInfo.startH, dragInfo.currentH)];
-            const wRange = [Math.min(dragInfo.startW, dragInfo.currentW), Math.max(dragInfo.startW, dragInfo.currentW)];
-            selections[dragInfo.type].push({ hStart: hRange[0], hEnd: hRange[1], wStart: wRange[0], wEnd: wRange[1] });
-            dragInfo.isDragging = false;
-            window.removeEventListener('mouseup', onGlobalMouseUp);
-            renderHeatmaps(handleSelect.value);
-        }
-
-        function updateGridSelectionPreview() {
-            if (!dragInfo.isDragging) return;
-            const gridEl = document.getElementById(`${dragInfo.type}-grid-element`);
-            const hRange = [Math.min(dragInfo.startH, dragInfo.currentH), Math.max(dragInfo.startH, dragInfo.currentH)];
-            const wRange = [Math.min(dragInfo.startW, dragInfo.currentW), Math.max(dragInfo.startW, dragInfo.currentW)];
-            gridEl.querySelectorAll('.heatmap-cell').forEach(cell => {
-                const h = parseInt(cell.dataset.h); const w = parseInt(cell.dataset.w);
-                if (h >= hRange[0] && h <= hRange[1] && w >= wRange[0] && w <= wRange[1]) cell.classList.add('cell-selecting');
-                else cell.classList.remove('cell-selecting');
-            });
-        }
-
-        function isCellInSelections(h, w, type) { return selections[type].some(sel => h >= sel.hStart && h <= sel.hEnd && w >= sel.wStart && w <= sel.wEnd); }
-        function getWeekIdx(s) {
-            const l = s.toLowerCase().trim();
-            const map = { 'mon':0,'monday':0,'星期一':0,'tue':1,'tuesday':1,'星期二':1,'wed':2,'wednesday':2,'星期三':2,'thu':3,'thurs':3,'thursday':3,'fri':4,'friday':4,'星期五':4,'sat':5,'saturday':5,'星期六':5,'sun':6,'sunday':6,'星期日':6,'1':0,'2':1,'3':2,'4':3,'5':4,'6':5,'7':6 };
-            for(let key in map) if(l === key || l.includes(key)) return map[key];
-            return -1;
-        }
-        function getHexColor(p) {
-            if (p <= 0)   return '#1a2235';
-            if (p < 0.1)  return '#1e3a5f';
-            if (p < 0.25) return '#1d4ed8';
-            if (p < 0.45) return '#f59e0b';
-            if (p < 0.65) return '#f97316';
-            if (p < 0.85) return '#ef4444';
-            return '#dc2626';
-        }
-
-        async function downloadSection(id, fileName) {
-            const element = document.getElementById(id);
-            const btn = element.querySelector('button'); btn.style.display = 'none';
-            const canvas = await html2canvas(element, { 
-                scale: 3, useCORS: true, backgroundColor: '#ffffff',
-                onclone: (clonedDoc) => {
-                    const clonedElement = clonedDoc.getElementById(id);
-                    clonedElement.querySelectorAll('.heatmap-cell, .hour-label, .day-label').forEach(el => {
-                        const rect = el.getBoundingClientRect(); const h = rect.height; const w = rect.width;
-                        el.style.display = 'table'; el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.padding = '0'; el.style.margin = '0';
-                        const content = el.innerHTML; const fontSize = window.getComputedStyle(el).fontSize;
-                        el.innerHTML = `<div style="display:table-cell;vertical-align:middle;text-align:center;width:100%;height:${h}px;font-family:Arial,sans-serif;font-size:${fontSize};font-weight:700;line-height:1;">${content}</div>`;
-                    });
-                }
-            });
-            btn.style.display = 'flex';
-            const link = document.createElement('a'); link.download = `${fileName}.jpg`; link.href = canvas.toDataURL("image/jpeg", 0.95); link.click();
-        }
-
-        async function runAI(handle, tGrid, oGrid) {
+// ── AI ────────────────────────────────────────────────────────
+async function runAI(handle, tGrid, oGrid) {
     aiLoading.style.display = 'flex';
-    aiDisplayArea.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:3rem 0;"><p class="font-mono" style="font-size:0.7rem;letter-spacing:0.1em;color:var(--muted);animation:pulse 1.5s ease-in-out infinite;">— 分析中 —</p></div>`;
+    aiDisplayArea.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:40px 0;color:var(--md-on-surface-variant);"><p style="font-size:0.8rem;letter-spacing:0.04em;">正在分析數據...</p></div>`;
 
-    let tList = [], oList = [];
-    tGrid.forEach((row, h) => row.forEach((v, w) => tList.push({h, w, v})));
-    oGrid.forEach((row, h) => row.forEach((v, w) => oList.push({h, w, v})));
+    const flatTop = (g, n) => g.flatMap((row,h) => row.map((v,w) => ({h,w,v})))
+                               .filter(x => x.v > 0).sort((a,b) => b.v-a.v).slice(0, n);
+    const fmt   = x => `${days[x.w]} ${x.h}點`;
+    const topT  = flatTop(tGrid, 3).map(fmt).join('、') || '無';
+    const topO  = flatTop(oGrid, 3).map(fmt).join('、') || '無';
 
-    const topT = tList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
-    const topO = oList.sort((a,b)=>b.v-a.v).slice(0, 3).map(x=>`${days[x.w]}${x.h}點`).join('、');
+    const cvrGrid = buildCVRGrid(tGrid, oGrid);
+    const cvrFlat = cvrGrid.flatMap((row,h) => row.map((v,w) => ({h,w,v}))).filter(x => x.v > 0).sort((a,b) => b.v-a.v);
+    const topCVR  = cvrFlat.slice(0, 3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
+    const lowCVR  = cvrFlat.slice(-3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
 
-    const prompt = `分析品牌 "${handle}"。流量高峰：${topT || '無資料'}，訂單高峰：${topO || '無資料'}。回傳純 JSON，格式如下：{"insights": ["重點1","重點2","重點3"],"suggestions": ["建議1","建議2","建議3"]}。不要包含任何 Markdown 標籤或額外文字。`;
+    const prompt = `你是一位資深電商顧問，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低（高流量低轉換）時段：${lowCVR}。\n請提供3條深度洞察（含流量與轉換率落差的原因分析）和3條針對電商顧問客戶的具體可執行行銷建議。\n回傳純 JSON：{"insights":["洞察1","洞察2","洞察3"],"suggestions":["建議1","建議2","建議3"]}。不含任何Markdown或額外文字。`;
 
     try {
-        const FUNCTION_URL = window.location.hostname.includes('localhost') 
-            ? 'http://localhost:3000/api/gemini' 
-            : '/api/gemini';
-
-        const response = await fetch(FUNCTION_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const FUNCTION_URL = window.location.hostname.includes('localhost')
+            ? 'http://localhost:3000/api/gemini' : '/api/gemini';
+        const res = await fetch(FUNCTION_URL, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ prompt })
         });
-
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error || "後端呼叫失敗 (status " + response.status + ")");
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.error || '後端錯誤 ' + res.status);
         }
-
-        const result = await response.json();
-        let rawText = result.text;
-
-        // --- 強力清洗與解析邏輯 ---
-        let finalData;
-        try {
-            // Extract JSON object from the response
-            const startIdx = rawText.indexOf('{');
-            const endIdx = rawText.lastIndexOf('}');
-            const cleanedText = (startIdx !== -1 && endIdx !== -1)
-                ? rawText.substring(startIdx, endIdx + 1)
-                : rawText.trim();
-            finalData = JSON.parse(cleanedText);
-        } catch (parseError) {
-            console.error("JSON 解析失敗:", parseError, "原始文字:", rawText);
-            throw new Error("AI 回傳格式無法解析：" + rawText.substring(0, 100));
-        }
-
-        if (finalData && finalData.insights) {
-            aiCache[handle] = finalData;
-            renderAIHTML(finalData);
-        } else {
-            throw new Error("回傳資料缺少關鍵欄位");
-        }
-
-    } catch (err) {
-        console.error("分析流程錯誤:", err);
-        aiDisplayArea.innerHTML = `<div style="padding:1rem;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;color:#f87171;font-size:0.75rem;font-family:'DM Mono',monospace;">⚠ ${err.message}</div>`;
+        const raw = (await res.json()).text;
+        const s = raw.indexOf('{'), e2 = raw.lastIndexOf('}');
+        const finalData = JSON.parse(s !== -1 && e2 !== -1 ? raw.substring(s, e2+1) : raw.trim());
+        if (!finalData.insights) throw new Error('缺少 insights 欄位');
+        aiCache[handle] = finalData;
+        renderAIHTML(finalData);
+    } catch(err) {
+        aiDisplayArea.innerHTML = `<div style="padding:12px 16px;background:var(--md-error-container);border-radius:12px;color:var(--md-error);font-size:0.8rem;font-weight:500;">⚠ ${err.message}</div>`;
     } finally {
         aiLoading.style.display = 'none';
     }
-} 
+}
 
-        function renderAIHTML(data) {
-            aiDisplayArea.innerHTML = `
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
-                    <div class="insight-card fade-up">
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
-                            <i data-lucide="trending-up" style="width:14px; height:14px; color:#818cf8;"></i>
-                            <span class="section-eyebrow" style="color:#818cf8;">數據洞察</span>
-                        </div>
-                        <ul style="display:flex; flex-direction:column; gap:0.875rem;">
-                            ${data.insights.map((p,i) => `
-                            <li style="display:flex; align-items:flex-start; gap:0.75rem;">
-                                <span class="font-mono" style="font-size:0.6rem; color:#6366f1; margin-top:3px; min-width:16px;">0${i+1}</span>
-                                <span style="font-size:0.85rem; color:#94a3b8; line-height:1.6;">${p}</span>
-                            </li>`).join('')}
-                        </ul>
-                    </div>
-                    <div class="suggestion-card fade-up" style="animation-delay:0.1s;">
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
-                            <i data-lucide="zap" style="width:14px; height:14px; color:#34d399;"></i>
-                            <span class="section-eyebrow" style="color:#34d399;">實戰建議</span>
-                        </div>
-                        <ul style="display:flex; flex-direction:column; gap:0.875rem;">
-                            ${data.suggestions.map((s,i) => `
-                            <li style="display:flex; align-items:flex-start; gap:0.75rem;">
-                                <span class="font-mono" style="font-size:0.6rem; color:#10b981; margin-top:3px; min-width:16px;">0${i+1}</span>
-                                <span style="font-size:0.85rem; color:#94a3b8; line-height:1.6;">${s}</span>
-                            </li>`).join('')}
-                        </ul>
-                    </div>
-                </div>`;
-            lucide.createIcons();
-        }
-
-        function showMessage(text, type) {
-            statusMessage.textContent = text;
-            const isErr = type === 'error';
-            statusMessage.style.display = 'block';
-            statusMessage.style.background = isErr ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)';
-            statusMessage.style.color = isErr ? '#f87171' : '#34d399';
-            statusMessage.style.borderColor = isErr ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)';
-        }
-    </script>
+function renderAIHTML(data) {
+    aiDisplayArea.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="ai-insight-card fade-up">
+            <div class="ai-section-label" style="color:var(--md-primary);">
+                <i data-lucide="trending-up" style="width:13px;height:13px;"></i> 數據洞察
+            </div>
+            <ul style="list-style:none;">
+                ${data.insights.map((p,i) => `
+                <li class="ai-list-item">
+                    <span class="ai-item-num" style="color:var(--md-primary);">0${i+1}</span>
+                    <span class="ai-item-text">${p}</span>
+                </li>`).join('')}
+            </ul>
+        </div>
+        <div class="ai-suggest-card fade-up fade-up-d1">
+            <div class="ai-section-label" style="color:var(--md-tertiary);">
+                <i data-lucide="zap" style="width:13px;height:13px;"></i> 實戰建議
+            </div>
+            <ul style="list-style:none;">
+                ${data.suggestions.map((s,i) => `
+                <li class="ai-list-item">
+                    <span class="ai-item-num" style="color:var(--md-tertiary);">0${i+1}</span>
+                    <span class="ai-item-text">${s}</span>
+                </li>`).join('')}
+            </ul>
+        </div>
+    </div>`;
+    lucide.createIcons();
+}
+</script>
 </body>
 </html>
