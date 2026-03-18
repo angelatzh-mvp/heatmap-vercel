@@ -18,10 +18,14 @@ export default async function handler(req, res) {
 
   let prompt = "";
   try {
-    prompt = req.body?.prompt;
+    let body = req.body;
+    if (typeof body === "string") {
+      body = JSON.parse(body);
+    }
+    prompt = body?.prompt;
     if (!prompt) throw new Error("Missing prompt");
   } catch (e) {
-    return res.status(400).json({ error: "Invalid request body." });
+    return res.status(400).json({ error: "Invalid request body: " + e.message });
   }
 
   const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
