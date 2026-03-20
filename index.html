@@ -302,43 +302,6 @@
             display: flex; align-items: center; gap: 6px;
             margin-bottom: 14px;
         }
-        .ai-summary-banner {
-            background: var(--md-surface);
-            border: 1px solid var(--md-outline-variant);
-            border-top: 3px solid #F59E0B;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-            display: flex;
-            gap: 0;
-        }
-        .ai-summary-item {
-            flex: 1;
-            padding: 0 20px;
-            border-right: 1px solid var(--md-outline-variant);
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-        }
-        .ai-summary-item:first-child { padding-left: 0; }
-        .ai-summary-item:last-child  { border-right: none; padding-right: 0; }
-        .ai-summary-icon {
-            width: 28px; height: 28px;
-            background: #FAEEDA;
-            border-radius: 7px;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; margin-top: 2px;
-        }
-        .ai-summary-key {
-            font-size: 0.67rem; font-weight: 700;
-            color: #B45309; letter-spacing: 0.07em;
-            text-transform: uppercase; margin-bottom: 4px;
-        }
-        .ai-summary-val {
-            font-size: 0.84rem; line-height: 1.6;
-            color: var(--md-on-surface-variant);
-            user-select: text; -webkit-user-select: text;
-        }
         .ai-insight-card {
             background: var(--md-surface);
             border: 1px solid var(--md-outline-variant);
@@ -442,6 +405,23 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Right: User account -->
+    <div id="userMenu" style="display:none;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;">
+        <img id="userAvatar" src="" alt="" width="32" height="32"
+             style="border-radius:50%;border:2px solid var(--md-outline-variant);">
+        <div style="line-height:1.3;">
+            <div id="userName" style="font-size:0.78rem;font-weight:600;color:var(--md-on-surface);"></div>
+            <div id="userEmail" style="font-size:0.65rem;color:var(--md-on-surface-variant);"></div>
+        </div>
+        <a href="/api/auth/logout"
+           style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;border:1px solid var(--md-outline);background:transparent;font-family:'Roboto Flex',sans-serif;font-size:0.72rem;font-weight:500;color:var(--md-on-surface-variant);text-decoration:none;transition:all 0.15s;"
+           onmouseover="this.style.background='var(--md-surface-variant)'"
+           onmouseout="this.style.background='transparent'">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            登出
+        </a>
     </div>
 </header>
 
@@ -616,9 +596,30 @@ let currentMode = 'single';
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 // ── Session check ─────────────────────────────────────────────
+async function checkSession() {
+    try {
+        const res  = await fetch('/api/auth/session');
+        const data = await res.json();
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+            return false;
+        }
+        // Show user info in header
+        const menu = document.getElementById('userMenu');
+        document.getElementById('userName').textContent  = data.name  || '';
+        document.getElementById('userEmail').textContent = data.email || '';
+        const avatar = document.getElementById('userAvatar');
+        if (data.picture) { avatar.src = data.picture; } else { avatar.style.display = 'none'; }
+        menu.style.display = 'flex';
+        return true;
+    } catch {
+        window.location.href = '/login.html';
+        return false;
+    }
+}
 
-
-window.onload = fetchSheetData;
+window.onload = async () => {
+    const ok = await checkSession();
     if (ok) fetchSheetData();
 };
 
@@ -1094,38 +1095,23 @@ function renderAIHTML(data) {
             </span>
         </li>`;
     };
-
+    const summaryKeys = ['高峰時段', '流量特性', '轉化節奏'];
     const summary = data.summary || {};
-    const summaryFields = [
-        {
-            key: '高峰時段',
-            icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
-        },
-        {
-            key: '流量特性',
-            icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>'
-        },
-        {
-            key: '轉化節奏',
-            icon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
-        },
-    ];
-
-    const summaryBannerHTML = summaryFields.map(({ key, icon }) => `
-        <div class="ai-summary-item">
-            <div class="ai-summary-icon">${icon}</div>
-            <div>
-                <div class="ai-summary-key">${key}</div>
-                <div class="ai-summary-val">${summary[key] || '—'}</div>
-            </div>
-        </div>`).join('');
-
+    const summaryHTML = summaryKeys.map(key => `
+        <li class="ai-list-item">
+            <span class="ai-item-text">
+                <strong style="font-weight:700;color:var(--md-on-surface);">${key}</strong>&ensp;${summary[key] || '—'}
+            </span>
+        </li>`).join('');
     aiDisplayArea.innerHTML = `
-    <div class="ai-summary-banner fade-up">
-        ${summaryBannerHTML}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div class="ai-insight-card fade-up-d1">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+        <div class="ai-insight-card fade-up">
+            <div class="ai-section-label" style="color:var(--md-primary);">
+                <i data-lucide="layout-list" style="width:13px;height:13px;"></i> 數據概要
+            </div>
+            <ul style="list-style:none;">${summaryHTML}</ul>
+        </div>
+        <div class="ai-insight-card fade-up fade-up-d1">
             <div class="ai-section-label" style="color:var(--md-primary);">
                 <i data-lucide="trending-up" style="width:13px;height:13px;"></i> 數據洞察
             </div>
@@ -1133,7 +1119,7 @@ function renderAIHTML(data) {
                 ${data.insights.map((p,i) => renderItem(p, i, 'var(--md-primary)')).join('')}
             </ul>
         </div>
-        <div class="ai-suggest-card fade-up-d2">
+        <div class="ai-suggest-card fade-up fade-up-d2">
             <div class="ai-section-label" style="color:var(--md-tertiary);">
                 <i data-lucide="zap" style="width:13px;height:13px;"></i> 實戰建議
             </div>
