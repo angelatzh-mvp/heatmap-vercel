@@ -1,5 +1,3 @@
-export const config = { runtime: 'edge' };
-
 import { jwtVerify } from 'jose';
 
 export default async function handler(req, res) {
