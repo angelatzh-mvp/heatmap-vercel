@@ -6,6 +6,7 @@
     <title>流量 & 訂單分析儀表板</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23FFFFFF%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFF9C4%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFCA28%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFA726%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFCA28%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFA726%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23C62828%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFA726%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23C62828%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%237F0000%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23C62828%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%237F0000%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%234A0000%22%2F%3E%3C%2Fsvg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600;8..144,700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -313,6 +314,7 @@
             border-top: 3px solid var(--md-tertiary);
             border-radius: 12px; padding: 20px;
         }
+        #aiDisplayArea, #aiDisplayArea * { user-select: text; -webkit-user-select: text; }
         .ai-list-item {
             display: flex; align-items: flex-start; gap: 12px;
             padding: 10px 0;
@@ -327,6 +329,8 @@
         .ai-item-text {
             font-size: 0.84rem; line-height: 1.65;
             color: var(--md-on-surface-variant);
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         /* ── Tooltip ── */
@@ -373,7 +377,8 @@
 
 <!-- ── Top App Bar ── -->
 <header class="top-app-bar">
-    <div style="display:flex;align-items:center;gap:14px;">
+    <!-- Left: App identity -->
+    <div style="display:flex;align-items:center;gap:14px;flex-shrink:0;">
         <div class="app-icon">
             <i data-lucide="activity" style="width:18px;height:18px;color:var(--md-primary);"></i>
         </div>
@@ -383,41 +388,40 @@
         </div>
     </div>
 
+    <!-- Centre: Controls -->
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <div id="loadingIndicator" class="loading-chip">
             <i data-lucide="loader-2" style="width:13px;height:13px;animation:spin 0.8s linear infinite;"></i>
             載入資料中
         </div>
-
-        <!-- User avatar + logout (shown after session verified) -->
-        <div id="userMenu" style="display:none;align-items:center;gap:10px;">
-            <img id="userAvatar" src="" alt="" width="32" height="32"
-                 style="border-radius:50%;border:2px solid var(--md-outline-variant);">
-            <div style="line-height:1.3;">
-                <div id="userName" style="font-size:0.78rem;font-weight:600;color:var(--md-on-surface);"></div>
-                <div id="userEmail" style="font-size:0.65rem;color:var(--md-on-surface-variant);"></div>
-            </div>
-            <a href="/api/auth/logout"
-               style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;border:1px solid var(--md-outline);background:transparent;font-family:'Roboto Flex',sans-serif;font-size:0.72rem;font-weight:500;color:var(--md-on-surface-variant);text-decoration:none;transition:all 0.15s;"
-               onmouseover="this.style.background='var(--md-surface-variant)'"
-               onmouseout="this.style.background='transparent'">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                登出
-            </a>
-        </div>
-
         <div id="controlsBar" style="display:none;align-items:center;gap:14px;flex-wrap:wrap;">
             <div class="md-select-field">
                 <label for="handleSelect">品牌</label>
                 <select id="handleSelect" class="md-select"></select>
             </div>
             <div class="seg-group">
-
                 <button class="seg-btn" id="chipCvr" onclick="setMode('cvr')">
                     <i data-lucide="percent" style="width:11px;height:11px;"></i> 轉換率
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Right: User account -->
+    <div id="userMenu" style="display:none;align-items:center;gap:10px;flex-shrink:0;">
+        <img id="userAvatar" src="" alt="" width="32" height="32"
+             style="border-radius:50%;border:2px solid var(--md-outline-variant);">
+        <div style="line-height:1.3;">
+            <div id="userName" style="font-size:0.78rem;font-weight:600;color:var(--md-on-surface);"></div>
+            <div id="userEmail" style="font-size:0.65rem;color:var(--md-on-surface-variant);"></div>
+        </div>
+        <a href="/api/auth/logout"
+           style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;border:1px solid var(--md-outline);background:transparent;font-family:'Roboto Flex',sans-serif;font-size:0.72rem;font-weight:500;color:var(--md-on-surface-variant);text-decoration:none;transition:all 0.15s;"
+           onmouseover="this.style.background='var(--md-surface-variant)'"
+           onmouseout="this.style.background='transparent'">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            登出
+        </a>
     </div>
 </header>
 
@@ -668,6 +672,7 @@ function processData(data) {
 
 // ── Mode switching ────────────────────────────────────────────
 function setMode(mode) {
+    if (mode === 'cvr' && currentMode === 'cvr') mode = 'single';
     currentMode = mode;
     $('chipCvr').classList.toggle('active', mode === 'cvr');
     $('cvrSection').style.display      = mode === 'cvr'     ? '' : 'none';
@@ -1049,7 +1054,7 @@ async function runAI(handle, tGrid, oGrid) {
     const topCVR  = cvrFlat.slice(0, 3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
     const lowCVR  = cvrFlat.slice(-3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
 
-    const prompt = `你是一位資深電商顧問，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低時段：${lowCVR}。\n請提供3條洞察和3條建議。每條須包含：一個標題（10字以內）和一段說明（80字以內）。\n回傳純 JSON：{"insights":[{"title":"標題","body":"說明"},...],"suggestions":[{"title":"標題","body":"說明"},...]}。不含任何Markdown或額外文字。`;
+    const prompt = `你是一位資深電商行銷專家，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低時段：${lowCVR}。\n請提供3條洞察和3條建議。每條須包含：一個標題（10字以內）和一段說明（65字以內）。\n回傳純 JSON：{"insights":[{"title":"標題","body":"說明"},...],"suggestions":[{"title":"標題","body":"說明"},...]}。不含任何Markdown或額外文字。`;
 
     try {
         const FUNCTION_URL = window.location.hostname.includes('localhost')
@@ -1083,7 +1088,7 @@ function renderAIHTML(data) {
         <li class="ai-list-item">
             <span class="ai-item-num" style="color:${color};">0${i+1}</span>
             <span class="ai-item-text">
-                ${title ? `<strong style="font-weight:600;color:var(--md-on-surface);">${title}</strong>　` : ''}${body}
+                ${title ? `<strong style="font-weight:700;color:var(--md-on-surface);">${title}</strong>&ensp;` : ''}${body}
             </span>
         </li>`;
     };
