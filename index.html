@@ -389,6 +389,23 @@
             載入資料中
         </div>
 
+        <!-- User avatar + logout (shown after session verified) -->
+        <div id="userMenu" style="display:none;align-items:center;gap:10px;">
+            <img id="userAvatar" src="" alt="" width="32" height="32"
+                 style="border-radius:50%;border:2px solid var(--md-outline-variant);">
+            <div style="line-height:1.3;">
+                <div id="userName" style="font-size:0.78rem;font-weight:600;color:var(--md-on-surface);"></div>
+                <div id="userEmail" style="font-size:0.65rem;color:var(--md-on-surface-variant);"></div>
+            </div>
+            <a href="/api/auth/logout"
+               style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;border:1px solid var(--md-outline);background:transparent;font-family:'Roboto Flex',sans-serif;font-size:0.72rem;font-weight:500;color:var(--md-on-surface-variant);text-decoration:none;transition:all 0.15s;"
+               onmouseover="this.style.background='var(--md-surface-variant)'"
+               onmouseout="this.style.background='transparent'">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                登出
+            </a>
+        </div>
+
         <div id="controlsBar" style="display:none;align-items:center;gap:14px;flex-wrap:wrap;">
             <div class="md-select-field">
                 <label for="handleSelect">品牌</label>
@@ -574,7 +591,33 @@ let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, c
 let currentMode = 'single';
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-window.onload = fetchSheetData;
+// ── Session check ─────────────────────────────────────────────
+async function checkSession() {
+    try {
+        const res  = await fetch('/api/auth/session');
+        const data = await res.json();
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+            return false;
+        }
+        // Show user info in header
+        const menu = document.getElementById('userMenu');
+        document.getElementById('userName').textContent  = data.name  || '';
+        document.getElementById('userEmail').textContent = data.email || '';
+        const avatar = document.getElementById('userAvatar');
+        if (data.picture) { avatar.src = data.picture; } else { avatar.style.display = 'none'; }
+        menu.style.display = 'flex';
+        return true;
+    } catch {
+        window.location.href = '/login.html';
+        return false;
+    }
+}
+
+window.onload = async () => {
+    const ok = await checkSession();
+    if (ok) fetchSheetData();
+};
 
 // ── Data fetch & process ──────────────────────────────────────
 async function fetchSheetData() {

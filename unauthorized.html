@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無存取權限 — 流量 & 訂單分析</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600;8..144,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --md-primary: #3949AB; --md-on-primary: #FFFFFF;
+            --md-primary-container: #E8EAF6; --md-on-primary-container: #1A237E;
+            --md-surface: #FFFFFF; --md-surface-variant: #F4F4F9;
+            --md-on-surface: #1C1B1F; --md-on-surface-variant: #46464F;
+            --md-outline-variant: #E2E2EC;
+            --md-error: #B3261E; --md-error-container: #F9DEDC;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Roboto Flex', sans-serif; background: var(--md-surface-variant); min-height: 100vh; display: flex; align-items: center; justify-content: center; -webkit-font-smoothing: antialiased; }
+        .card { background: var(--md-surface); border-radius: 28px; box-shadow: 0 2px 6px rgba(57,73,171,0.06), 0 8px 24px rgba(57,73,171,0.08); padding: 48px 40px 40px; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
+        .icon-wrap { width: 64px; height: 64px; background: var(--md-error-container); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+        .icon-wrap svg { width: 28px; height: 28px; stroke: var(--md-error); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .headline { font-size: 1.4rem; font-weight: 600; color: var(--md-on-surface); text-align: center; margin-bottom: 10px; }
+        .body-text { font-size: 0.85rem; color: var(--md-on-surface-variant); text-align: center; line-height: 1.6; margin-bottom: 12px; }
+        .email-chip { font-size: 0.78rem; font-weight: 500; background: var(--md-error-container); color: var(--md-error); padding: 4px 14px; border-radius: 100px; margin-bottom: 32px; }
+        .divider { width: 100%; height: 1px; background: var(--md-outline-variant); margin-bottom: 28px; }
+        .back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; background: var(--md-primary-container); color: var(--md-on-primary-container); border: none; border-radius: 100px; font-family: 'Roboto Flex', sans-serif; font-size: 0.88rem; font-weight: 500; letter-spacing: 0.02em; cursor: pointer; text-decoration: none; transition: filter 0.15s; }
+        .back-btn:hover { filter: brightness(0.95); }
+        .note { margin-top: 20px; font-size: 0.7rem; color: var(--md-on-surface-variant); text-align: center; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+        <h1 class="headline">無存取權限</h1>
+        <p class="body-text">此帳號不在允許的網域範圍內。</p>
+        <div class="email-chip" id="emailChip"></div>
+        <div class="divider"></div>
+        <a class="back-btn" href="/api/auth/logout">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap: round; stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            使用其他帳號登入
+        </a>
+        <p class="note">僅限 @shopline.com 帳號存取<br>如有疑問請聯繫系統管理員</p>
+    </div>
+    <script>
+        const email = new URLSearchParams(window.location.search).get('email');
+        document.getElementById('emailChip').textContent = email || '未知帳號';
+    </script>
+</body>
+</html>
