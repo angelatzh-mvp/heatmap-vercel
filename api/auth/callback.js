@@ -1,3 +1,5 @@
+export const config = { runtime: 'edge' };
+
 import { SignJWT } from 'jose';
 
 export default async function handler(req, res) {
