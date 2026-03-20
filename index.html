@@ -45,7 +45,6 @@
             background: var(--md-surface-variant);
             color: var(--md-on-surface);
             min-height: 100vh;
-            user-select: none;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -228,6 +227,7 @@
             width: 100%; height: 100%;
         }
         .heatmap-cell {
+            user-select: none;
             display: flex; align-items: center; justify-content: center;
             font-size: clamp(0.3rem, 0.6vw, 0.5rem);
             font-weight: 500; font-family: 'Roboto Mono', monospace;
@@ -1049,7 +1049,7 @@ async function runAI(handle, tGrid, oGrid) {
     const topCVR  = cvrFlat.slice(0, 3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
     const lowCVR  = cvrFlat.slice(-3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
 
-    const prompt = `你是一位資深電商顧問，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低（高流量低轉換）時段：${lowCVR}。\n請提供3條深度洞察（含流量與轉換率落差的原因分析）和3條針對電商顧問客戶的具體可執行行銷建議。\n回傳純 JSON：{"insights":["洞察1","洞察2","洞察3"],"suggestions":["建議1","建議2","建議3"]}。不含任何Markdown或額外文字。`;
+    const prompt = `你是一位資深電商顧問，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低時段：${lowCVR}。\n請提供3條洞察和3條建議。每條須包含：一個標題（10字以內）和一段說明（80字以內）。\n回傳純 JSON：{"insights":[{"title":"標題","body":"說明"},...],"suggestions":[{"title":"標題","body":"說明"},...]}。不含任何Markdown或額外文字。`;
 
     try {
         const FUNCTION_URL = window.location.hostname.includes('localhost')
@@ -1076,6 +1076,17 @@ async function runAI(handle, tGrid, oGrid) {
 }
 
 function renderAIHTML(data) {
+    const renderItem = (item, i, color) => {
+        const title = typeof item === 'object' ? item.title : '';
+        const body  = typeof item === 'object' ? item.body  : item;
+        return `
+        <li class="ai-list-item">
+            <span class="ai-item-num" style="color:${color};">0${i+1}</span>
+            <span class="ai-item-text">
+                ${title ? `<strong style="font-weight:600;color:var(--md-on-surface);">${title}</strong>　` : ''}${body}
+            </span>
+        </li>`;
+    };
     aiDisplayArea.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div class="ai-insight-card fade-up">
@@ -1083,11 +1094,7 @@ function renderAIHTML(data) {
                 <i data-lucide="trending-up" style="width:13px;height:13px;"></i> 數據洞察
             </div>
             <ul style="list-style:none;">
-                ${data.insights.map((p,i) => `
-                <li class="ai-list-item">
-                    <span class="ai-item-num" style="color:var(--md-primary);">0${i+1}</span>
-                    <span class="ai-item-text">${p}</span>
-                </li>`).join('')}
+                ${data.insights.map((p,i) => renderItem(p, i, 'var(--md-primary)')).join('')}
             </ul>
         </div>
         <div class="ai-suggest-card fade-up fade-up-d1">
@@ -1095,11 +1102,7 @@ function renderAIHTML(data) {
                 <i data-lucide="zap" style="width:13px;height:13px;"></i> 實戰建議
             </div>
             <ul style="list-style:none;">
-                ${data.suggestions.map((s,i) => `
-                <li class="ai-list-item">
-                    <span class="ai-item-num" style="color:var(--md-tertiary);">0${i+1}</span>
-                    <span class="ai-item-text">${s}</span>
-                </li>`).join('')}
+                ${data.suggestions.map((s,i) => renderItem(s, i, 'var(--md-tertiary)')).join('')}
             </ul>
         </div>
     </div>`;
