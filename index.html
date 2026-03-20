@@ -408,7 +408,7 @@
     </div>
 
     <!-- Right: User account -->
-    <div id="userMenu" style="display:none;align-items:center;gap:10px;flex-shrink:0;">
+    <div id="userMenu" style="display:none;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;">
         <img id="userAvatar" src="" alt="" width="32" height="32"
              style="border-radius:50%;border:2px solid var(--md-outline-variant);">
         <div style="line-height:1.3;">
@@ -1054,7 +1054,7 @@ async function runAI(handle, tGrid, oGrid) {
     const topCVR  = cvrFlat.slice(0, 3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
     const lowCVR  = cvrFlat.slice(-3).map(x => `${fmt(x)} (${(x.v*100).toFixed(1)}%)`).join('、') || '無';
 
-    const prompt = `你是一位資深電商行銷專家，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低時段：${lowCVR}。\n請提供3條洞察和3條建議。每條須包含：一個標題（10字以內）和一段說明（65字以內）。\n回傳純 JSON：{"insights":[{"title":"標題","body":"說明"},...],"suggestions":[{"title":"標題","body":"說明"},...]}。不含任何Markdown或額外文字。`;
+    const prompt = `你是一位資深電商行銷專家，請分析品牌 "${handle}" 的數據。\n流量高峰：${topT}。訂單高峰：${topO}。\n轉換率最高時段：${topCVR}。轉換率偏低時段：${lowCVR}。\n請提供：\n1. 數據概要（summary）：針對「高峰時段」、「流量特性」、「轉化節奏」各給一句精準的分析短語（20-35字，分析師語氣，不要是完整句子）。\n2. 3條洞察和3條給品牌的專業建議（顧問語氣，但不要太生硬）。每條須包含：一個標題（15字以內）和一段說明（120字以內）。\n回傳純 JSON：{"summary":{"高峰時段":"...","流量特性":"...","轉化節奏":"..."},"insights":[{"title":"標題","body":"說明"},...],"suggestions":[{"title":"標題","body":"說明"},...]}。不含任何Markdown或額外文字。`;
 
     try {
         const FUNCTION_URL = window.location.hostname.includes('localhost')
@@ -1069,8 +1069,11 @@ async function runAI(handle, tGrid, oGrid) {
         }
         const raw = (await res.json()).text;
         const s = raw.indexOf('{'), e2 = raw.lastIndexOf('}');
-        const finalData = JSON.parse(s !== -1 && e2 !== -1 ? raw.substring(s, e2+1) : raw.trim());
-        if (!finalData.insights) throw new Error('缺少 insights 欄位');
+        let jsonStr = s !== -1 && e2 !== -1 ? raw.substring(s, e2+1) : raw.trim();
+        // Fix unescaped newlines/tabs inside JSON string values
+        jsonStr = jsonStr.replace(/("(?:[^"\\]|\\.)*")|([\n\r\t])/g, (m, str, ws) => str ? str : ' ');
+        const finalData = JSON.parse(jsonStr);
+        if (!finalData.insights || !finalData.summary) throw new Error('缺少必要欄位 — raw: ' + jsonStr.substring(0, 120));
         aiCache[handle] = finalData;
         renderAIHTML(finalData);
     } catch(err) {
@@ -1092,9 +1095,23 @@ function renderAIHTML(data) {
             </span>
         </li>`;
     };
+    const summaryKeys = ['高峰時段', '流量特性', '轉化節奏'];
+    const summary = data.summary || {};
+    const summaryHTML = summaryKeys.map(key => `
+        <li class="ai-list-item">
+            <span class="ai-item-text">
+                <strong style="font-weight:700;color:var(--md-on-surface);">${key}</strong>&ensp;${summary[key] || '—'}
+            </span>
+        </li>`).join('');
     aiDisplayArea.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
         <div class="ai-insight-card fade-up">
+            <div class="ai-section-label" style="color:var(--md-primary);">
+                <i data-lucide="layout-list" style="width:13px;height:13px;"></i> 數據概要
+            </div>
+            <ul style="list-style:none;">${summaryHTML}</ul>
+        </div>
+        <div class="ai-insight-card fade-up fade-up-d1">
             <div class="ai-section-label" style="color:var(--md-primary);">
                 <i data-lucide="trending-up" style="width:13px;height:13px;"></i> 數據洞察
             </div>
@@ -1102,7 +1119,7 @@ function renderAIHTML(data) {
                 ${data.insights.map((p,i) => renderItem(p, i, 'var(--md-primary)')).join('')}
             </ul>
         </div>
-        <div class="ai-suggest-card fade-up fade-up-d1">
+        <div class="ai-suggest-card fade-up fade-up-d2">
             <div class="ai-section-label" style="color:var(--md-tertiary);">
                 <i data-lucide="zap" style="width:13px;height:13px;"></i> 實戰建議
             </div>
