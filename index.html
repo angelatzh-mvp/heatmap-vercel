@@ -635,10 +635,7 @@ async function checkSession() {
     try {
         const res  = await fetch('/api/auth/session');
         const data = await res.json();
-        if (!data.authenticated) {
-            window.location.href = '/login.html';
-            return false;
-        }
+        if (!data.authenticated) return;
         // Show user info in header
         const menu = document.getElementById('userMenu');
         document.getElementById('userName').textContent  = data.name  || '';
@@ -646,16 +643,16 @@ async function checkSession() {
         const avatar = document.getElementById('userAvatar');
         if (data.picture) { avatar.src = data.picture; } else { avatar.style.display = 'none'; }
         menu.style.display = 'flex';
-        return true;
     } catch {
-        window.location.href = '/login.html';
-        return false;
+        // Session display is non-critical — middleware handles auth
     }
 }
 
-window.onload = async () => {
-    const ok = await checkSession();
-    if (ok) fetchSheetData();
+window.onload = () => {
+    // Auth is already guaranteed by Vercel middleware.
+    // Fetch session info for display only — non-blocking.
+    checkSession();
+    fetchSheetData();
 };
 
 // ── Data fetch & process ──────────────────────────────────────
