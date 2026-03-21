@@ -609,9 +609,7 @@
 <script>
 lucide.createIcons();
 
-const SHEET_ID = "1DrKOSCFSFq9X-nD37beBAnnntAP06vf7jyEIGCPpQ-E";
-const GID      = "1526535922";
-const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
 
 const $ = id => document.getElementById(id);
 const handleSelect     = $('handleSelect');
@@ -671,13 +669,15 @@ window.onload = async () => {
 // ── Data fetch & process ──────────────────────────────────────
 async function fetchSheetData() {
     try {
-        const r = await fetch(CSV_URL);
+        const r = await fetch('/api/data');
         if (!r.ok) throw new Error("HTTP " + r.status);
-        Papa.parse(await r.text(), {
-            header: true, skipEmptyLines: true,
-            transformHeader: h => h.trim().replace(/^\ufeff/, ''),
-            complete: res => processData(res.data),
-        });
+        const { headers, rows } = await r.json();
+        if (!headers || !rows.length) throw new Error('試算表無資料');
+        // Convert to array-of-objects matching PapaParse output format
+        const data = rows.map(row =>
+            Object.fromEntries(headers.map((h, i) => [h.trim().replace(/^\ufeff/, ''), row[i] ?? '']))
+        );
+        processData(data);
     } catch(e) { showMessage("數據擷取失敗：" + e.message, "error"); }
 }
 
