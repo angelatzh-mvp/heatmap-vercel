@@ -1,5 +1,5 @@
 import { jwtVerify } from 'jose';
-import { readSheetWithAI } from '../sheets.js';
+import { readSheet } from './sheets.js';
 
 const SHEET_ID      = process.env.HEATMAP_SHEET_ID;
 const ALLOWED_TABS  = ['TW', 'HK'];
@@ -19,16 +19,13 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
-  // Use WHATWG URL API to parse query params safely
-  const { searchParams } = new URL(req.url, `https://${req.headers.host}`);
-  const country = searchParams.get('country') || 'TW';
-
+  const country = req.query.country || 'TW';
   if (!ALLOWED_TABS.includes(country)) {
     return res.status(400).json({ error: `Invalid country. Must be one of: ${ALLOWED_TABS.join(', ')}` });
   }
 
   try {
-    const rows = await readSheetWithAI(SHEET_ID, country);
+    const rows = await readSheet(SHEET_ID, country);
     if (!rows || rows.length < 2) {
       return res.status(200).json({ headers: [], rows: [] });
     }
