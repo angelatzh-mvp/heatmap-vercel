@@ -1,5 +1,5 @@
 import { jwtVerify } from 'jose';
-import { readSheet } from './sheets.js';
+import { readSheetWithAI } from './sheets.js';
 
 const SHEET_ID      = process.env.HEATMAP_SHEET_ID;
 const ALLOWED_TABS  = ['TW', 'HK'];
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const rows = await readSheet(SHEET_ID, country);
+    const rows = await readSheetWithAI(SHEET_ID, country);
     if (!rows || rows.length < 2) {
       return res.status(200).json({ headers: [], rows: [] });
     }

@@ -61,6 +61,25 @@ export async function appendRow(sheetId, sheetName, values) {
 
 export async function readSheet(sheetId, sheetName) {
   const token = await getServiceAccountToken();
+  // Read A:F — covers handle, Period, Weeks, Hours, Avg_Visited, Total_Avg_Online_Orders
+  // Deliberately excludes ai_response (column G+) to avoid response size issues
+  const range = encodeURIComponent(`${sheetName}!A:F`);
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`,
+    { headers: { 'Authorization': `Bearer ${token}` } }
+  );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error('Sheets read error: ' + JSON.stringify(err));
+  }
+  const data = await res.json();
+  return data.values || [];
+}
+
+export async function readSheetWithAI(sheetId, sheetName) {
+  // Reads the full row including ai_response column for the AI cache feature
+  // Uses A:Z but only for the heatmap sheet which has a bounded number of columns
+  const token = await getServiceAccountToken();
   const range = encodeURIComponent(`${sheetName}!A:Z`);
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`,
