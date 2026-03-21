@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>流量 & 訂單分析儀表板</title>
+    <title>流量 & 訂單時段熱力圖</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23FFFFFF%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFF9C4%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFCA28%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFA726%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%224%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFCA28%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFA726%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%2210.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23C62828%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23FFA726%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23C62828%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%2217%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%237F0000%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23EF5350%22%2F%3E%3Crect%20x%3D%2210.5%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%23C62828%22%2F%3E%3Crect%20x%3D%2217%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%237F0000%22%2F%3E%3Crect%20x%3D%2223.5%22%20y%3D%2223.5%22%20width%3D%225%22%20height%3D%225%22%20rx%3D%221%22%20fill%3D%22%234A0000%22%2F%3E%3C%2Fsvg%3E">
@@ -419,8 +419,8 @@
             <i data-lucide="activity" style="width:18px;height:18px;color:var(--md-primary);"></i>
         </div>
         <div>
-            <div class="headline-small">流量 &amp; 訂單分析</div>
-            <div class="body-small">E-commerce Analytics Dashboard</div>
+            <div class="headline-small">流量 &amp; 訂單時段熱力圖</div>
+            <div class="body-small">Data Range: 2025 all year</div>
         </div>
     </div>
 
@@ -431,6 +431,10 @@
             載入資料中
         </div>
         <div id="controlsBar" style="display:none;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div class="seg-group">
+                <button class="seg-btn active" id="chipTW" onclick="setCountry('TW')">🇹🇼 TW</button>
+                <button class="seg-btn" id="chipHK" onclick="setCountry('HK')">🇭🇰 HK</button>
+            </div>
             <div class="md-select-field">
                 <label for="handleSelect">品牌</label>
                 <select id="handleSelect" class="md-select"></select>
@@ -588,7 +592,7 @@
                     </div>
                     <div>
                         <div class="title-medium">AI 營運洞察與實戰建議</div>
-                        <div class="label-small">Powered by Gemini · 專為電商顧問設計</div>
+
                     </div>
                 </div>
                 <div id="aiLoading" style="display:none;" class="loading-chip">
@@ -627,6 +631,7 @@ let aiCache     = {};
 let selections  = { traffic:[], orders:[], cvr:[] };
 let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, currentW:null, type:null };
 let currentMode = 'single';
+let currentCountry = 'TW';
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 // ── Session check ─────────────────────────────────────────────
@@ -669,11 +674,10 @@ window.onload = async () => {
 // ── Data fetch & process ──────────────────────────────────────
 async function fetchSheetData() {
     try {
-        const r = await fetch('/api/data');
+        const r = await fetch(`/api/data?country=${currentCountry}`);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const { headers, rows } = await r.json();
         if (!headers || !rows.length) throw new Error('試算表無資料');
-        // Convert to array-of-objects matching PapaParse output format
         const data = rows.map(row =>
             Object.fromEntries(headers.map((h, i) => [h.trim().replace(/^\ufeff/, ''), row[i] ?? '']))
         );
@@ -726,6 +730,19 @@ function setMode(mode) {
     selections = { traffic:[], orders:[], cvr:[] };
     renderAll();
     lucide.createIcons();
+}
+
+// ── Country switching ─────────────────────────────────────────
+function setCountry(country) {
+    if (country === currentCountry) return;
+    currentCountry = country;
+    $('chipTW').classList.toggle('active', country === 'TW');
+    $('chipHK').classList.toggle('active', country === 'HK');
+    // Reset state for fresh load
+    rawData    = [];
+    aiCache    = {};
+    selections = { traffic:[], orders:[], cvr:[] };
+    fetchSheetData();
 }
 
 handleSelect.addEventListener('change', () => {

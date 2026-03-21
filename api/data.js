@@ -1,8 +1,8 @@
 import { jwtVerify } from 'jose';
 import { readSheet } from './sheets.js';
 
-const SHEET_ID   = process.env.HEATMAP_SHEET_ID;
-const SHEET_NAME = '產出結果';
+const SHEET_ID      = process.env.HEATMAP_SHEET_ID;
+const ALLOWED_TABS  = ['TW', 'HK'];
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -19,8 +19,13 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
+  const country = req.query.country || 'TW';
+  if (!ALLOWED_TABS.includes(country)) {
+    return res.status(400).json({ error: `Invalid country. Must be one of: ${ALLOWED_TABS.join(', ')}` });
+  }
+
   try {
-    const rows = await readSheet(SHEET_ID, SHEET_NAME);
+    const rows = await readSheet(SHEET_ID, country);
     if (!rows || rows.length < 2) {
       return res.status(200).json({ headers: [], rows: [] });
     }
