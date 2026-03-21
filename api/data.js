@@ -19,7 +19,10 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid session' });
   }
 
-  const country = req.query.country || 'TW';
+  // Use WHATWG URL API to parse query params safely
+  const { searchParams } = new URL(req.url, `https://${req.headers.host}`);
+  const country = searchParams.get('country') || 'TW';
+
   if (!ALLOWED_TABS.includes(country)) {
     return res.status(400).json({ error: `Invalid country. Must be one of: ${ALLOWED_TABS.join(', ')}` });
   }
