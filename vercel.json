@@ -4,6 +4,7 @@
     "api/track.js":         { "memory": 128 },
     "api/report.js":        { "memory": 128 },
     "api/data.js":          { "memory": 128 },
+    "api/save-ai.js":       { "memory": 128 },
     "api/auth/callback.js": { "memory": 128 },
     "api/auth/session.js":  { "memory": 128 }
   }

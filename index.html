@@ -420,7 +420,7 @@
         </div>
         <div>
             <div class="headline-small">流量 &amp; 訂單時段熱力圖</div>
-            <div class="body-small">Data Range: 2025 all year</div>
+            <div class="body-small">Created by Angela Hung</div>
         </div>
     </div>
 
@@ -569,7 +569,7 @@
                     </button>
                 </div>
                 <div class="peak-strip" id="cvrPeakStrip">
-                    <span class="peak-strip-label">High CVR Windows</span>
+                    <span class="peak-strip-label">Top Peaks</span>
                 </div>
                 <div class="heatmap-wrapper">
                     <div class="heatmap-container-wrapper">
@@ -629,8 +629,9 @@ const aiDisplayArea    = $('aiDisplayArea');
 const aiLoading        = $('aiLoading');
 const tooltip          = $('cellTooltip');
 
-let rawData     = [];
-let aiCache     = {};
+let rawData      = [];
+let aiCache      = {};     // in-memory Gemini response cache (keyed by handle::period)
+let aiSheetCache = {};     // pre-loaded from sheet ai_response column (keyed by handle::period)
 let selections  = { traffic:[], orders:[], cvr:[] };
 let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, currentW:null, type:null };
 let currentCountry = 'TW';
@@ -683,8 +684,28 @@ async function fetchSheetData() {
         if (!r.ok) throw new Error("HTTP " + r.status);
         const { headers, rows } = await r.json();
         if (!headers || !rows.length) throw new Error('試算表無資料');
+
+        // Build aiSheetCache from ai_response column before converting to objects
+        aiSheetCache = {};
+        const cleanHeader = h => h.trim().replace(/^\ufeff/, '');
+        const hdrs        = headers.map(cleanHeader);
+        const handleIdx   = hdrs.findIndex(h => h.toLowerCase() === 'handle');
+        const periodIdx   = hdrs.findIndex(h => h.toLowerCase() === 'period');
+        const aiIdx       = hdrs.findIndex(h => h.toLowerCase() === 'ai_response');
+        if (handleIdx !== -1 && periodIdx !== -1 && aiIdx !== -1) {
+            rows.forEach(row => {
+                const handle = (row[handleIdx] || '').trim();
+                const period = (row[periodIdx] || '').trim();
+                const ai     = (row[aiIdx]     || '').trim();
+                if (handle && period && ai) {
+                    const key = `${handle}::${period}`;
+                    if (!aiSheetCache[key]) aiSheetCache[key] = ai; // only first matching row
+                }
+            });
+        }
+
         const data = rows.map(row =>
-            Object.fromEntries(headers.map((h, i) => [h.trim().replace(/^\ufeff/, ''), row[i] ?? '']))
+            Object.fromEntries(hdrs.map((h, i) => [h, row[i] ?? '']))
         );
         processData(data);
     } catch(e) { showMessage("數據擷取失敗：" + e.message, "error"); }
@@ -748,9 +769,10 @@ function setCountry(country) {
     $('chipTW').classList.toggle('active', country === 'TW');
     $('chipHK').classList.toggle('active', country === 'HK');
     // Reset state for fresh load
-    rawData    = [];
-    aiCache    = {};
-    selections = { traffic:[], orders:[], cvr:[] };
+    rawData      = [];
+    aiCache      = {};
+    aiSheetCache = {};
+    selections   = { traffic:[], orders:[], cvr:[] };
     fetchSheetData();
 }
 
@@ -797,8 +819,22 @@ function renderAll() {
     renderPeakStrip('ordersPeakStrip',  oGrid, 'o');
     renderCVRPeakStrip('cvrPeakStrip',  cvrGrid);
 
-    if (aiCache[cacheKey]) renderAIHTML(aiCache[cacheKey]);
-    else runAI(handle, tGrid, oGrid, cacheKey);
+    // 1. Sheet cache (pre-loaded ai_response column) — no API call needed
+    if (aiSheetCache[cacheKey]) {
+        try {
+            const parsed = JSON.parse(aiSheetCache[cacheKey]);
+            aiCache[cacheKey] = parsed; // promote to in-memory cache
+            renderAIHTML(parsed);
+        } catch {
+            runAI(handle, tGrid, oGrid, cacheKey); // malformed JSON — fall back to Gemini
+        }
+    // 2. In-memory cache from this session
+    } else if (aiCache[cacheKey]) {
+        renderAIHTML(aiCache[cacheKey]);
+    // 3. No cache — call Gemini
+    } else {
+        runAI(handle, tGrid, oGrid, cacheKey);
+    }
 }
 
 
@@ -1157,6 +1193,19 @@ async function runAI(handle, tGrid, oGrid, cacheKey) {
         const finalData = JSON.parse(jsonStr);
         if (!finalData.insights || !finalData.summary) throw new Error('缺少必要欄位 — raw: ' + jsonStr.substring(0, 120));
         aiCache[cacheKey] = finalData;
+        // Save to sheet in background so future loads skip Gemini
+        const jsonStr = JSON.stringify(finalData);
+        aiSheetCache[cacheKey] = jsonStr;
+        fetch('/api/save-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                country: currentCountry,
+                handle,
+                period:  currentPeriod,
+                json:    jsonStr,
+            }),
+        }).catch(err => console.warn('Save AI cache failed:', err.message));
         renderAIHTML(finalData);
     } catch(err) {
         aiDisplayArea.innerHTML = `<div style="padding:12px 16px;background:var(--md-error-container);border-radius:12px;color:var(--md-error);font-size:0.8rem;font-weight:500;">⚠ ${err.message}</div>`;

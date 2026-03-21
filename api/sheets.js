@@ -61,7 +61,7 @@ export async function appendRow(sheetId, sheetName, values) {
 
 export async function readSheet(sheetId, sheetName) {
   const token = await getServiceAccountToken();
-  const range = encodeURIComponent(`${sheetName}!A:F`);
+  const range = encodeURIComponent(`${sheetName}!A:Z`);
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`,
     { headers: { 'Authorization': `Bearer ${token}` } }
@@ -72,6 +72,30 @@ export async function readSheet(sheetId, sheetName) {
   }
   const data = await res.json();
   return data.values || [];
+}
+
+export async function updateCell(sheetId, sheetName, rowIndex, colIndex, value) {
+  // rowIndex and colIndex are 0-based; Sheets API uses 1-based rows and A1 notation
+  const token  = await getServiceAccountToken();
+  const col    = String.fromCharCode(65 + colIndex); // 0→A, 1→B, etc.
+  const row    = rowIndex + 1;                        // 1-based
+  const range  = encodeURIComponent(`${sheetName}!${col}${row}`);
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values: [[value]] }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error('Sheets update error: ' + JSON.stringify(err));
+  }
+  return res.json();
 }
 
 export async function deleteOldRows(sheetId, sheetName, retentionDays = 180) {
