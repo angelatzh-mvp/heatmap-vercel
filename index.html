@@ -440,6 +440,14 @@
                 <select id="handleSelect" class="md-select"></select>
             </div>
             <div class="seg-group">
+                <button class="seg-btn active" id="chipPeriodFull"
+                    title="2025 全年"
+                    onclick="setPeriod('2025 全年')">2025 全年</button>
+                <button class="seg-btn" id="chipPeriodRecent"
+                    title="2025/12-2026/2 過去三個月"
+                    onclick="setPeriod('2025/12-2026/2 (過去三個月）')">過去三個月</button>
+            </div>
+            <div class="seg-group">
                 <button class="seg-btn" id="chipCvr" onclick="setMode('cvr')">
                     <i data-lucide="percent" style="width:11px;height:11px;"></i> 轉換率
                 </button>
@@ -630,8 +638,11 @@ let rawData     = [];
 let aiCache     = {};
 let selections  = { traffic:[], orders:[], cvr:[] };
 let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, currentW:null, type:null };
-let currentMode = 'single';
+let currentMode    = 'single';
 let currentCountry = 'TW';
+let currentPeriod  = '2025 全年';
+const PERIOD_FULL   = '2025 全年';
+const PERIOD_RECENT = '2025/12-2026/2 (過去三個月）';
 const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 // ── Session check ─────────────────────────────────────────────
@@ -693,6 +704,7 @@ function processData(data) {
     const cleanNum = v => { const n = parseFloat(String(v||0).replace(/[$, ]/g,'')); return isNaN(n) ? 0 : n; };
     const cols = {
         handle:  findCol(['handle','品牌','店家']),
+        period:  findCol(['Period','period','時期']),
         weeks:   findCol(['weeks','Weeks','星期','week']),
         hours:   findCol(['hours','Hours','時段','hour']),
         visited: findCol(['Avg_Visited','流量','visited']),
@@ -700,14 +712,29 @@ function processData(data) {
     };
     rawData = data.map(row => ({
         handle:  String(row[cols.handle]  || 'Unknown').trim(),
+        period:  String(row[cols.period]  || '').trim(),
         weeks:   String(row[cols.weeks]   || '').trim(),
         hours:   parseInt(row[cols.hours]),
         visited: cleanNum(row[cols.visited]),
         orders:  cleanNum(row[cols.orders]),
     })).filter(d => !isNaN(d.hours));
 
+    // Check which periods exist in data and update button states
+    const periods = new Set(rawData.map(d => d.period));
+    $('chipPeriodFull').disabled   = !periods.has(PERIOD_FULL);
+    $('chipPeriodRecent').disabled = !periods.has(PERIOD_RECENT);
+    $('chipPeriodFull').style.opacity   = periods.has(PERIOD_FULL)   ? '' : '0.4';
+    $('chipPeriodRecent').style.opacity = periods.has(PERIOD_RECENT) ? '' : '0.4';
+
+    // If current period not in data, fall back to whatever is available
+    if (!periods.has(currentPeriod)) {
+        currentPeriod = periods.has(PERIOD_FULL) ? PERIOD_FULL : PERIOD_RECENT;
+        $('chipPeriodFull').classList.toggle('active',   currentPeriod === PERIOD_FULL);
+        $('chipPeriodRecent').classList.toggle('active', currentPeriod === PERIOD_RECENT);
+    }
+
     const handles = [...new Set(rawData.map(d => d.handle))];
-    handleSelect.innerHTML   = handles.map(h => `<option value="${h}">${h}</option>`).join('');
+    handleSelect.innerHTML = handles.map(h => `<option value="${h}">${h}</option>`).join('');
 
     loadingIndicator.style.display = 'none';
     controlsBar.style.display      = 'flex';
@@ -745,6 +772,17 @@ function setCountry(country) {
     fetchSheetData();
 }
 
+// ── Period switching ──────────────────────────────────────────
+function setPeriod(period) {
+    if (period === currentPeriod) return;
+    currentPeriod = period;
+    $('chipPeriodFull').classList.toggle('active',   period === PERIOD_FULL);
+    $('chipPeriodRecent').classList.toggle('active', period === PERIOD_RECENT);
+    selections = { traffic:[], orders:[], cvr:[] };
+    // AI cache is keyed by handle+period so switching period gets fresh analysis
+    renderAll();
+}
+
 handleSelect.addEventListener('change', () => {
     selections = { traffic:[], orders:[], cvr:[] };
     track('view_brand', handleSelect.value);
@@ -753,8 +791,9 @@ handleSelect.addEventListener('change', () => {
 
 // ── Render orchestration ──────────────────────────────────────
 function renderAll() {
-    const handle = handleSelect.value;
-    const data   = rawData.filter(d => d.handle === handle);
+    const handle   = handleSelect.value;
+    const cacheKey = `${handle}::${currentPeriod}`;
+    const data     = rawData.filter(d => d.handle === handle && d.period === currentPeriod);
     const tGrid  = buildGrid(data, 'visited');
     const oGrid  = buildGrid(data, 'orders');
     const maxT   = gridMax(tGrid);
@@ -779,8 +818,8 @@ function renderAll() {
         renderCVRPeakStrip('cvrPeakStrip', cvrGrid);
     }
 
-    if (aiCache[handle]) renderAIHTML(aiCache[handle]);
-    else runAI(handle, tGrid, oGrid);
+    if (aiCache[cacheKey]) renderAIHTML(aiCache[cacheKey]);
+    else runAI(handle, tGrid, oGrid, cacheKey);
 }
 
 
@@ -1103,7 +1142,7 @@ function downloadSection(id, fileName) {
 }
 
 // ── AI ────────────────────────────────────────────────────────
-async function runAI(handle, tGrid, oGrid) {
+async function runAI(handle, tGrid, oGrid, cacheKey) {
     aiLoading.style.display = 'flex';
     aiDisplayArea.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:40px 0;color:var(--md-on-surface-variant);"><p style="font-size:0.8rem;letter-spacing:0.04em;">正在分析數據...</p></div>`;
 
@@ -1138,7 +1177,7 @@ async function runAI(handle, tGrid, oGrid) {
         jsonStr = jsonStr.replace(/("(?:[^"\\]|\\.)*")|([\n\r\t])/g, (m, str, ws) => str ? str : ' ');
         const finalData = JSON.parse(jsonStr);
         if (!finalData.insights || !finalData.summary) throw new Error('缺少必要欄位 — raw: ' + jsonStr.substring(0, 120));
-        aiCache[handle] = finalData;
+        aiCache[cacheKey] = finalData;
         renderAIHTML(finalData);
     } catch(err) {
         aiDisplayArea.innerHTML = `<div style="padding:12px 16px;background:var(--md-error-container);border-radius:12px;color:var(--md-error);font-size:0.8rem;font-weight:500;">⚠ ${err.message}</div>`;
