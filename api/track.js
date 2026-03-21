@@ -1,5 +1,5 @@
 import { jwtVerify } from 'jose';
-import { appendRow, deleteOldRows } from './sheets.js';
+import { appendRow, deleteOldRows } from '../sheets.js';
 
 const SHEET_ID   = process.env.TRACKING_SHEET_ID;
 const SHEET_NAME = 'events';

@@ -77,10 +77,9 @@ export async function readSheet(sheetId, sheetName) {
 }
 
 export async function readSheetWithAI(sheetId, sheetName) {
-  // Reads the full row including ai_response column for the AI cache feature
-  // Uses A:Z but only for the heatmap sheet which has a bounded number of columns
+  // Reads A:G — covers all data columns plus ai_response (column G)
   const token = await getServiceAccountToken();
-  const range = encodeURIComponent(`${sheetName}!A:Z`);
+  const range = encodeURIComponent(`${sheetName}!A:G`);
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`,
     { headers: { 'Authorization': `Bearer ${token}` } }

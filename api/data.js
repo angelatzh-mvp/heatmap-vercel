@@ -1,5 +1,5 @@
 import { jwtVerify } from 'jose';
-import { readSheetWithAI } from './sheets.js';
+import { readSheetWithAI } from '../sheets.js';
 
 const SHEET_ID      = process.env.HEATMAP_SHEET_ID;
 const ALLOWED_TABS  = ['TW', 'HK'];
