@@ -1,19 +1,9 @@
 {
   "functions": {
-    "api/gemini.js": {
-      "memory": 256
-    },
-    "api/auth/login.js": {
-      "memory": 128
-    },
-    "api/auth/callback.js": {
-      "memory": 128
-    },
-    "api/auth/logout.js": {
-      "memory": 128
-    },
-    "api/auth/session.js": {
-      "memory": 128
-    }
+    "api/gemini.js": { "memory": 256 },
+    "api/track.js":  { "memory": 128 },
+    "api/report.js": { "memory": 128 },
+    "api/auth/callback.js": { "memory": 128 },
+    "api/auth/session.js":  { "memory": 128 }
   }
 }

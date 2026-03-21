@@ -1,7 +1,7 @@
 import { jwtVerify } from 'jose';
 
 export const config = {
-  matcher: ['/((?!login|unauthorized|api/auth|_next|favicon).*)'],
+  matcher: ['/((?!login\\.html|unauthorized\\.html|api/|_next/|favicon).*)'],
 };
 
 export default async function middleware(req) {
@@ -9,18 +9,24 @@ export default async function middleware(req) {
   const cookie = req.headers.get('cookie') || '';
   const match  = cookie.match(/(?:^|;\s*)__session=([^;]+)/);
 
-  // No session cookie → redirect to login
   if (!match) {
     return Response.redirect(new URL('/login.html', req.url));
   }
 
+  let payload;
   try {
     const secret = new TextEncoder().encode(process.env.SESSION_SECRET);
-    await jwtVerify(match[1], secret);
-    // Valid session → allow through
-    return;
+    ({ payload } = await jwtVerify(match[1], secret));
   } catch {
-    // Expired or invalid token → redirect to login
     return Response.redirect(new URL('/login.html', req.url));
   }
+
+  // report.html is admin-only — redirect others to dashboard
+  if (url.pathname === '/report.html') {
+    if (payload.email !== process.env.REPORT_ADMIN_EMAIL) {
+      return Response.redirect(new URL('/', req.url));
+    }
+  }
+
+  return;
 }

@@ -654,6 +654,15 @@ async function checkSession() {
     }
 }
 
+// ── Usage tracking ───────────────────────────────────────────
+function track(event, brand = '') {
+    fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, brand }),
+    }).catch(() => {});
+}
+
 window.onload = async () => {
     const ok = await checkSession();
     if (ok) fetchSheetData();
@@ -703,6 +712,7 @@ function processData(data) {
 
     const target = handles.includes('annaeveryday') ? 'annaeveryday' : handles[0];
     handleSelect.value = target;
+    track('view_brand', target);
     renderAll();
 }
 
@@ -720,6 +730,7 @@ function setMode(mode) {
 
 handleSelect.addEventListener('change', () => {
     selections = { traffic:[], orders:[], cvr:[] };
+    track('view_brand', handleSelect.value);
     renderAll();
 });
 
