@@ -156,6 +156,36 @@
         }
         .seg-btn:not(.active):hover { background: var(--md-surface-container); }
 
+        /* ── Heatmap view tab strip ── */
+        .view-tab-strip {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+            background: var(--md-surface);
+            padding: 0 4px;
+            margin-bottom: 20px;
+            border-radius: 12px 12px 0 0;
+        }
+        .view-tab {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 12px 20px 11px;
+            background: transparent;
+            color: var(--md-on-surface-variant);
+            border: none; border-bottom: 2px solid transparent;
+            font-family: 'Roboto Flex', sans-serif;
+            font-size: 0.82rem; font-weight: 500; letter-spacing: 0.02em;
+            cursor: pointer; transition: all 0.15s; white-space: nowrap;
+            margin-bottom: -1px;
+        }
+        .view-tab:hover { color: var(--md-on-surface); background: var(--md-surface-variant); border-radius: 8px 8px 0 0; }
+        .view-tab.active {
+            color: var(--md-primary);
+            border-bottom-color: var(--md-primary);
+            font-weight: 600;
+        }
+        .view-tab.active:hover { background: var(--md-primary-container); }
+
         /* ── MD3 Filled Select ── */
         .md-select-field {
             background: var(--md-surface-container);
@@ -447,11 +477,6 @@
                     title="2025/12-2026/2 過去三個月"
                     onclick="setPeriod('2025/12-2026/2 (過去三個月）')">過去三個月</button>
             </div>
-            <div class="seg-group">
-                <button class="seg-btn" id="chipCvr" onclick="setMode('cvr')">
-                    <i data-lucide="percent" style="width:11px;height:11px;"></i> 轉換率
-                </button>
-            </div>
         </div>
     </div>
 
@@ -488,7 +513,21 @@
     <!-- Dashboard -->
     <div id="dashboardContent" style="display:none;">
 
-        <div class="heatmaps-grid" id="heatmapsGrid">
+        <!-- ── View tab strip ── -->
+        <div style="background:var(--md-surface);border-radius:12px;box-shadow:var(--md-elev1);margin-bottom:20px;overflow:hidden;">
+            <div class="view-tab-strip">
+                <button class="view-tab active" id="tabTraffic" onclick="setMode('traffic')">
+                    <i data-lucide="users" style="width:13px;height:13px;"></i> 流量
+                </button>
+                <button class="view-tab" id="tabOrders" onclick="setMode('orders')">
+                    <i data-lucide="shopping-cart" style="width:13px;height:13px;"></i> 訂單
+                </button>
+                <button class="view-tab" id="tabCvr" onclick="setMode('cvr')">
+                    <i data-lucide="percent" style="width:13px;height:13px;"></i> 轉換率
+                </button>
+            </div>
+
+            <div class="heatmaps-grid" id="heatmapsGrid" style="padding:0 16px 16px;">
 
             <!-- ── Traffic card ── -->
             <div class="md-card fade-up" id="trafficSection">
@@ -590,6 +629,7 @@
                 </div>
             </div>
         </div><!-- /heatmapsGrid -->
+        </div><!-- /tab strip wrapper -->
 
         <!-- ── AI Insights card ── -->
         <div class="md-card fade-up-d2">
@@ -638,7 +678,7 @@ let rawData     = [];
 let aiCache     = {};
 let selections  = { traffic:[], orders:[], cvr:[] };
 let dragInfo    = { isDragging:false, startH:null, startW:null, currentH:null, currentW:null, type:null };
-let currentMode    = 'single';
+let currentMode    = 'traffic';
 let currentCountry = 'TW';
 let currentPeriod  = '2025 全年';
 const PERIOD_FULL   = '2025 全年';
@@ -743,17 +783,35 @@ function processData(data) {
 
     const target = handles.includes('annaeveryday') ? 'annaeveryday' : handles[0];
     handleSelect.value = target;
+    // Reset to traffic tab on fresh country/data load
+    currentMode = 'traffic';
+    $('tabTraffic').classList.add('active');
+    $('tabOrders').classList.remove('active');
+    $('tabCvr').classList.remove('active');
+    $('trafficSection').style.display = '';
+    $('ordersSection').style.display  = 'none';
+    $('cvrSection').style.display     = 'none';
+    $('heatmapsGrid').style.gridTemplateColumns = '1fr 1fr';
     track('view_brand', target);
     renderAll();
 }
 
 // ── Mode switching ────────────────────────────────────────────
 function setMode(mode) {
-    if (mode === 'cvr' && currentMode === 'cvr') mode = 'single';
     currentMode = mode;
-    $('chipCvr').classList.toggle('active', mode === 'cvr');
-    $('cvrSection').style.display      = mode === 'cvr'     ? '' : 'none';
+    $('tabTraffic').classList.toggle('active', mode === 'traffic');
+    $('tabOrders').classList.toggle('active',  mode === 'orders');
+    $('tabCvr').classList.toggle('active',     mode === 'cvr');
+
+    // Traffic tab: show traffic only
+    // Orders tab: show orders only
+    // CVR tab: show all three
+    $('trafficSection').style.display = (mode === 'traffic' || mode === 'cvr') ? '' : 'none';
+    $('ordersSection').style.display  = (mode === 'orders'  || mode === 'cvr') ? '' : 'none';
+    $('cvrSection').style.display     =  mode === 'cvr' ? '' : 'none';
+
     $('heatmapsGrid').style.gridTemplateColumns = mode === 'cvr' ? '1fr 1fr 1fr' : '1fr 1fr';
+
     selections = { traffic:[], orders:[], cvr:[] };
     renderAll();
     lucide.createIcons();
